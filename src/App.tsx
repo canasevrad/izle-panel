@@ -18,6 +18,16 @@ type ParsedM3uChannel = {
   category: SourceCategory;
 };
 
+type AccessLogEventType = 'login' | 'logout';
+
+type AccessLogRecord = {
+  id: string;
+  email: string;
+  event_type: AccessLogEventType;
+  role: 'admin' | 'viewer';
+  created_at: string;
+};
+
 type TvFocusArea = 'categories' | 'sources' | 'playerControls';
 type TvPlayerControl = 'toggleAutoSwitch' | 'previousSource' | 'nextSource' | 'toggleFullscreen';
 
@@ -26,6 +36,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const SUPABASE_TABLE = import.meta.env.VITE_SUPABASE_TABLE ?? 'stream_sources';
 const SUPABASE_VIEWERS_TABLE = import.meta.env.VITE_SUPABASE_VIEWERS_TABLE ?? 'stream_viewers';
+const SUPABASE_ACCESS_LOGS_TABLE = import.meta.env.VITE_SUPABASE_ACCESS_LOGS_TABLE ?? 'stream_access_logs';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase() ?? '';
 const LEGACY_FILM_PREFIX = '[FILM] ';
 const MUSIC_CATEGORY_PREFIX = '[MUZIK] ';
@@ -113,6 +124,19 @@ function getDisplayCategoryFromStored(storedCategory: string, storedName: string
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function formatDateTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleString('tr-TR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function inferCategoryFromChannel(name: string, groupTitle: string) {
@@ -340,6 +364,9 @@ export default function App() {
   const [isLoadingViewers, setIsLoadingViewers] = useState(false);
   const [isSavingViewer, setIsSavingViewer] = useState(false);
   const [isCreatingViewerUser, setIsCreatingViewerUser] = useState(false);
+  const [accessLogs, setAccessLogs] = useState<AccessLogRecord[]>([]);
+  const [isLoadingAccessLogs, setIsLoadingAccessLogs] = useState(false);
+  const [accessLogsError, setAccessLogsError] = useState('');
   const [draggingSourceId, setDraggingSourceId] = useState<string | null>(null);
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const [supportsCloudOrdering, setSupportsCloudOrdering] = useState(true);
@@ -643,6 +670,16 @@ export default function App() {
     }
 
     void loadViewerEmails();
+  }, [storageMode, isAdmin]);
+
+  useEffect(() => {
+    if (storageMode !== 'cloud' || !isAdmin) {
+      setAccessLogs([]);
+      setAccessLogsError('');
+      return;
+    }
+
+    void loadAccessLogs();
   }, [storageMode, isAdmin]);
 
   useEffect(() => {
@@ -1009,13 +1046,67 @@ export default function App() {
     return true;
   }
 
-  async function loginWithPassword(email: string, password: string) {
-    if (!supabase) return { ok: false as const, message: 'Supabase baglantisi yok.' };
+  async function loadAccessLogs() {
+    if (!supabase || !isAdmin || storageMode !== 'cloud') {
+      setAccessLogs([]);
+      setAccessLogsError('');
+      return;
+    }
+
+    setIsLoadingAccessLogs(true);
+    const { data, error } = await supabase
+      .from(SUPABASE_ACCESS_LOGS_TABLE)
+      .select('id, email, event_type, role, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setIsLoadingAccessLogs(false);
+
+    if (error) {
+      setAccessLogs([]);
+      if (error.message.toLowerCase().includes('does not exist') || error.code === '42P01') {
+        setAccessLogsError('Giris kayit tablosu bulunamadi. Supabase SQL adimini eklemen gerekiyor.');
+      } else if (error.code === '42501' || error.message.toLowerCase().includes('permission')) {
+        setAccessLogsError('Giris kayitlarini gormek icin tablo policy ayarlarini kontrol et.');
+      } else {
+        setAccessLogsError(`Giris kayitlari yuklenemedi: ${error.message}`);
+      }
+      return;
+    }
+
+    setAccessLogsError('');
+    setAccessLogs((data ?? []) as AccessLogRecord[]);
+  }
+
+  async function logAccessEvent(eventType: AccessLogEventType, email: string) {
+    if (!supabase || storageMode !== 'cloud') return;
 
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) return { ok: false as const, message: 'Lutfen e-posta girin.' };
-    if (!isValidEmail(normalizedEmail)) return { ok: false as const, message: 'Gecerli bir e-posta girin.' };
-    if (!password.trim()) return { ok: false as const, message: 'Lutfen sifreni gir.' };
+    if (!normalizedEmail) return;
+
+    const role: AccessLogRecord['role'] = normalizedEmail === ADMIN_EMAIL ? 'admin' : 'viewer';
+
+    const { error } = await supabase.from(SUPABASE_ACCESS_LOGS_TABLE).insert({
+      email: normalizedEmail,
+      event_type: eventType,
+      role,
+    });
+
+    if (error) {
+      return;
+    }
+
+    if (isAdmin) {
+      await loadAccessLogs();
+    }
+  }
+
+  async function loginWithPassword(email: string, password: string) {
+    if (!supabase) return { ok: false as const, message: 'Supabase baglantisi yok.', email: '' };
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return { ok: false as const, message: 'Lutfen e-posta girin.', email: '' };
+    if (!isValidEmail(normalizedEmail)) return { ok: false as const, message: 'Gecerli bir e-posta girin.', email: '' };
+    if (!password.trim()) return { ok: false as const, message: 'Lutfen sifreni gir.', email: '' };
 
     const { error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
@@ -1023,10 +1114,10 @@ export default function App() {
     });
 
     if (error) {
-      return { ok: false as const, message: `Giris yapilamadi: ${error.message}` };
+      return { ok: false as const, message: `Giris yapilamadi: ${error.message}`, email: normalizedEmail };
     }
 
-    return { ok: true as const, message: 'Giris basarili.' };
+    return { ok: true as const, message: 'Giris basarili.', email: normalizedEmail };
   }
 
   async function handleAdminLogin(event: FormEvent<HTMLFormElement>) {
@@ -1045,6 +1136,7 @@ export default function App() {
     setIsAdminAuthSubmitting(false);
     setAdminAuthMessage(result.message);
     if (result.ok) {
+      await logAccessEvent('login', result.email);
       setAdminAuthPassword('');
     }
   }
@@ -1059,12 +1151,17 @@ export default function App() {
     setIsViewerAuthSubmitting(false);
     setViewerAuthMessage(result.message);
     if (result.ok) {
+      await logAccessEvent('login', result.email);
       setViewerAuthPassword('');
     }
   }
 
   async function handleLogout() {
     if (!supabase) return;
+    const emailToLog = authUserEmail;
+    if (emailToLog) {
+      await logAccessEvent('logout', emailToLog);
+    }
     await supabase.auth.signOut();
     setViewerEmails([]);
     setAdminAuthMessage('Cikis yapildi.');
@@ -2159,6 +2256,45 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {isAdmin && storageMode === 'cloud' && (
+            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-medium text-zinc-200">Giris Gecmisi</h2>
+                  <p className="text-xs text-zinc-400">Kim ne zaman giris yapti veya cikis yapti goruntuleyebilirsin.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadAccessLogs()}
+                  disabled={isLoadingAccessLogs}
+                  className="rounded-md border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Yenile
+                </button>
+              </div>
+
+              {isLoadingAccessLogs && <p className="text-xs text-zinc-400">Giris kayitlari yukleniyor...</p>}
+              {!isLoadingAccessLogs && accessLogsError && <p className="text-xs text-amber-300">{accessLogsError}</p>}
+              {!isLoadingAccessLogs && !accessLogsError && accessLogs.length === 0 && (
+                <p className="text-xs text-zinc-400">Henuz giris veya cikis kaydi yok.</p>
+              )}
+
+              {!accessLogsError && accessLogs.length > 0 && (
+                <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+                  {accessLogs.map((record) => (
+                    <div key={record.id} className="rounded-md border border-zinc-800 bg-zinc-950/40 px-2 py-1.5 text-xs">
+                      <p className="truncate text-zinc-200">{record.email}</p>
+                      <p className="text-[11px] text-zinc-500">
+                        {record.event_type === 'login' ? 'Giris' : 'Cikis'} - {record.role === 'admin' ? 'Admin' : 'Izleyici'} -{' '}
+                        {formatDateTime(record.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
