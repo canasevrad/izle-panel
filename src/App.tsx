@@ -486,6 +486,7 @@ export default function App() {
       { value: 'sports' as const, label: 'Mac Yayinlari' },
       { value: 'tv' as const, label: 'TV' },
       ...(isAdmin ? [{ value: 'music' as const, label: 'Muzik' }] : []),
+      ...(isAdmin ? [{ value: 'hidden' as const, label: 'Gizli' }] : []),
     ],
     [isAdmin],
   );
@@ -2591,6 +2592,7 @@ export default function App() {
                           <option value="sports">Mac Yayinlari</option>
                           <option value="tv">TV</option>
                           {isAdmin && <option value="music">Muzik</option>}
+                          {isAdmin && <option value="hidden">Gizli</option>}
                         </select>
                       </div>
                     )}
