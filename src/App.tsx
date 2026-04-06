@@ -2,7 +2,7 @@ import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState
 import { createClient } from '@supabase/supabase-js';
 import Hls from 'hls.js';
 
-type SourceCategory = 'tv' | 'sports' | 'music';
+type SourceCategory = 'tv' | 'sports' | 'music' | 'hidden';
 
 type StreamSource = {
   id: string;
@@ -40,6 +40,7 @@ const SUPABASE_ACCESS_LOGS_TABLE = import.meta.env.VITE_SUPABASE_ACCESS_LOGS_TAB
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase() ?? '';
 const LEGACY_FILM_PREFIX = '[FILM] ';
 const MUSIC_CATEGORY_PREFIX = '[MUZIK] ';
+const HIDDEN_CATEGORY_PREFIX = '[GIZLI] ';
 const AUTO_SWITCH_MIN_SOURCE_WAIT_MS = 3500;
 
 const supabase =
@@ -82,11 +83,12 @@ function normalizeUrl(input: string) {
 function categoryLabel(category: SourceCategory) {
   if (category === 'sports') return 'Mac Yayinlari';
   if (category === 'tv') return 'TV';
+  if (category === 'hidden') return 'Gizli';
   return 'Muzik';
 }
 
 function isSourceCategory(value: string): value is SourceCategory {
-  return value === 'sports' || value === 'tv' || value === 'music';
+  return value === 'sports' || value === 'tv' || value === 'music' || value === 'hidden';
 }
 
 function stripLegacyFilmPrefix(name: string) {
@@ -95,6 +97,10 @@ function stripLegacyFilmPrefix(name: string) {
 
 function stripMusicPrefix(name: string) {
   return name.startsWith(MUSIC_CATEGORY_PREFIX) ? name.slice(MUSIC_CATEGORY_PREFIX.length) : name;
+}
+
+function stripHiddenPrefix(name: string) {
+  return name.startsWith(HIDDEN_CATEGORY_PREFIX) ? name.slice(HIDDEN_CATEGORY_PREFIX.length) : name;
 }
 
 function getDisplayCategoryFromStored(storedCategory: string, storedName: string): SourceCategory | null {
@@ -109,6 +115,10 @@ function getDisplayCategoryFromStored(storedCategory: string, storedName: string
 
   if (storedCategory === 'general' && storedName.startsWith(MUSIC_CATEGORY_PREFIX)) {
     return 'music';
+  }
+
+  if (storedCategory === 'general' && storedName.startsWith(HIDDEN_CATEGORY_PREFIX)) {
+    return 'hidden';
   }
 
   if (isSourceCategory(storedCategory)) {
@@ -148,10 +158,17 @@ function inferCategoryFromChannel(name: string, groupTitle: string) {
 }
 
 function toStoredSourcePayload(name: string, category: SourceCategory) {
-  const sanitizedName = stripMusicPrefix(stripLegacyFilmPrefix(name.trim()));
+  const sanitizedName = stripHiddenPrefix(stripMusicPrefix(stripLegacyFilmPrefix(name.trim())));
   if (category === 'music') {
     return {
       name: `${MUSIC_CATEGORY_PREFIX}${sanitizedName}`,
+      category: 'general',
+    };
+  }
+
+  if (category === 'hidden') {
+    return {
+      name: `${HIDDEN_CATEGORY_PREFIX}${sanitizedName}`,
       category: 'general',
     };
   }
@@ -288,7 +305,7 @@ function sanitizeSources(input: unknown) {
 
       return {
         id: source.id && source.id.trim() ? source.id : crypto.randomUUID(),
-        name: stripMusicPrefix(stripLegacyFilmPrefix(rawName)),
+          name: stripHiddenPrefix(stripMusicPrefix(stripLegacyFilmPrefix(rawName))),
         url: normalizedUrl,
         category: displayCategory,
         enabled: source.enabled ?? true,
@@ -387,6 +404,7 @@ export default function App() {
   const autoPlayAttemptKeyRef = useRef('');
   const sourceLoadStartedAtRef = useRef(0);
   const failedAutoOpenAttemptRef = useRef('');
+  const wasAdminRef = useRef(false);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -423,7 +441,7 @@ export default function App() {
   const cloudAuthReady = storageMode === 'local' || !!authUserEmail;
 
   const accessibleSources = useMemo(
-    () => (isAdmin ? sources : sources.filter((source) => source.category !== 'music')),
+    () => (isAdmin ? sources : sources.filter((source) => source.category !== 'music' && source.category !== 'hidden')),
     [isAdmin, sources],
   );
 
@@ -444,7 +462,15 @@ export default function App() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!isAdmin && selectedCategoryFilter === 'music') {
+    // Reset to Match Broadcasts whenever a new admin session starts.
+    if (isAdmin && !wasAdminRef.current) {
+      setSelectedCategoryFilter('sports');
+    }
+    wasAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin && (selectedCategoryFilter === 'music' || selectedCategoryFilter === 'hidden')) {
       setSelectedCategoryFilter('sports');
     }
   }, [isAdmin, selectedCategoryFilter]);
@@ -2360,6 +2386,7 @@ export default function App() {
                   <option value="sports">Mac Yayinlari</option>
                   <option value="tv">TV</option>
                   <option value="music">Muzik</option>
+                  <option value="hidden">Gizli (Sadece Admin)</option>
                 </select>
                 <button
                   type="submit"
@@ -2705,6 +2732,7 @@ export default function App() {
                             <option value="sports">Mac Yayinlari</option>
                             <option value="tv">TV</option>
                             <option value="music">Muzik</option>
+                            <option value="hidden">Gizli (Sadece Admin)</option>
                           </select>
                           <button
                             type="button"
