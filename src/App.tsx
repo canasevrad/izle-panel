@@ -313,6 +313,7 @@ export default function App() {
   const [videoResolution, setVideoResolution] = useState('-');
   const [videoFps, setVideoFps] = useState('-');
   const [autoSwitch, setAutoSwitch] = useState(true);
+  const [autoOpenInNewTabOnFail, setAutoOpenInNewTabOnFail] = useState(true);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [storageMode, setStorageMode] = useState<'cloud' | 'local'>(supabase ? 'cloud' : 'local');
@@ -358,6 +359,7 @@ export default function App() {
   const hlsRef = useRef<Hls | null>(null);
   const autoPlayAttemptKeyRef = useRef('');
   const sourceLoadStartedAtRef = useRef(0);
+  const failedAutoOpenAttemptRef = useRef('');
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -971,6 +973,26 @@ export default function App() {
 
     return () => window.clearTimeout(switchTimer);
   }, [playerState, autoSwitch, activeSource, visibleSources]);
+
+  useEffect(() => {
+    if (playerState === 'failed') return;
+    failedAutoOpenAttemptRef.current = '';
+  }, [playerState, activeSourceId]);
+
+  useEffect(() => {
+    if (playerState !== 'failed' || !autoOpenInNewTabOnFail || !activeSource) return;
+
+    const attemptKey = `${activeSource.id}:${activeSource.url}`;
+    if (failedAutoOpenAttemptRef.current === attemptKey) return;
+    failedAutoOpenAttemptRef.current = attemptKey;
+
+    const popup = window.open(activeSource.url, '_blank', 'noopener,noreferrer');
+    if (popup) {
+      setPlayerMessage('Kaynak oynatilamadi. Kaynak sayfasi yeni sekmede acildi.');
+    } else {
+      setPlayerMessage('Kaynak oynatilamadi. Otomatik yeni sekme engellendi; Yeni Sekmede Ac butonunu kullanin.');
+    }
+  }, [playerState, autoOpenInNewTabOnFail, activeSource]);
 
   function requireAdmin() {
     if (storageMode !== 'cloud') return true;
@@ -1805,13 +1827,20 @@ export default function App() {
     setPlayerMessage('Bu medya baglantisi oynatilmadi. Linki veya codec destegini kontrol edin.');
   }
 
-  function openActiveSourceInNewTab() {
-    if (!activeSource) return;
-    const popup = window.open(activeSource.url, '_blank', 'noopener,noreferrer');
+  function openSourceInNewTab(source: StreamSource | null) {
+    if (!source) return false;
+    const popup = window.open(source.url, '_blank', 'noopener,noreferrer');
     if (!popup) {
       setPlayerState('failed');
       setPlayerMessage('Yeni sekme acilamadi. Tarayicida pop-up izni verip tekrar deneyin.');
+      return false;
     }
+
+    return true;
+  }
+
+  function openActiveSourceInNewTab() {
+    void openSourceInNewTab(activeSource);
   }
 
   async function toggleFullscreen() {
@@ -2636,6 +2665,13 @@ export default function App() {
                     </button>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={() => setAutoOpenInNewTabOnFail((prev) => !prev)}
+                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500"
+                >
+                  Acilmazsa Yeni Sekme: {autoOpenInNewTabOnFail ? 'Acik' : 'Kapali'}
+                </button>
                 <button
                   type="button"
                   onClick={openActiveSourceInNewTab}
