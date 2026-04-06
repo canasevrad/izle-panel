@@ -818,12 +818,14 @@ export default function App() {
   }, [sources, storageMode, isLoadingSources]);
 
   useEffect(() => {
-    if (accessibleSources.some((source) => source.id === activeSourceId)) return;
+    // Keep the first opened source aligned with the currently selected category when possible.
+    if (visibleSources.some((source) => source.id === activeSourceId)) return;
 
-    const fallback = accessibleSources.find((source) => source.enabled) ?? accessibleSources[0];
+    const scopedList = visibleSources.length > 0 ? visibleSources : accessibleSources;
+    const fallback = scopedList.find((source) => source.enabled) ?? scopedList[0];
     setActiveSourceId(fallback?.id ?? '');
     triedInCycleRef.current = new Set(fallback ? [fallback.id] : []);
-  }, [accessibleSources, activeSourceId]);
+  }, [visibleSources, accessibleSources, activeSourceId]);
 
   useEffect(() => {
     if (!activeSource) {
