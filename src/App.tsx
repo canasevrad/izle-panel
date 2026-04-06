@@ -523,6 +523,18 @@ export default function App() {
   useEffect(() => {
     if (!isTvMode || !canViewContent) return;
 
+    function focusLeftPanel() {
+      if (tvNavigableSources.length > 0) {
+        setTvFocusArea('sources');
+      } else {
+        setTvFocusArea('categories');
+      }
+    }
+
+    function focusRightPanel() {
+      setTvFocusArea('playerControls');
+    }
+
     function moveArea(direction: 1 | -1) {
       const areas: TvFocusArea[] = ['categories', 'sources', 'playerControls'];
       const activeAreas = areas.filter((area) => (area !== 'sources' ? true : tvNavigableSources.length > 0));
@@ -553,9 +565,32 @@ export default function App() {
         return;
       }
 
+      const isNextChannelKey =
+        event.key === 'ChannelUp' || event.key === 'PageUp' || event.key === 'MediaTrackNext';
+      const isPreviousChannelKey =
+        event.key === 'ChannelDown' || event.key === 'PageDown' || event.key === 'MediaTrackPrevious';
+
+      // Keep panel switching on Left/Right, but also support direct channel zapping from remote CH keys.
+      if (isNextChannelKey || isPreviousChannelKey) {
+        event.preventDefault();
+        if (tvNavigableSources.length > 0) {
+          if (isNextChannelKey) {
+            switchToNextSource();
+          } else {
+            switchToPreviousSource();
+          }
+          setTvFocusArea('sources');
+        }
+        return;
+      }
+
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        if (tvFocusArea === 'sources' && tvNavigableSources.length > 0) {
+        if (tvFocusArea === 'playerControls') {
+          setTvPlayerControlIndex((prev) => (prev + 1) % tvPlayerControls.length);
+        } else if (tvFocusArea === 'categories') {
+          setTvCategoryIndex((prev) => (prev + 1) % tvCategoryOptions.length);
+        } else if (tvFocusArea === 'sources' && tvNavigableSources.length > 0) {
           const currentIndex = tvNavigableSources.findIndex((source) => source.id === focusedSourceId);
           const safeIndex = currentIndex >= 0 ? currentIndex : 0;
           const nextIndex = (safeIndex + 1) % tvNavigableSources.length;
@@ -567,7 +602,11 @@ export default function App() {
 
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        if (tvFocusArea === 'sources' && tvNavigableSources.length > 0) {
+        if (tvFocusArea === 'playerControls') {
+          setTvPlayerControlIndex((prev) => (prev - 1 + tvPlayerControls.length) % tvPlayerControls.length);
+        } else if (tvFocusArea === 'categories') {
+          setTvCategoryIndex((prev) => (prev - 1 + tvCategoryOptions.length) % tvCategoryOptions.length);
+        } else if (tvFocusArea === 'sources' && tvNavigableSources.length > 0) {
           const currentIndex = tvNavigableSources.findIndex((source) => source.id === focusedSourceId);
           const safeIndex = currentIndex >= 0 ? currentIndex : 0;
           const previousIndex = (safeIndex - 1 + tvNavigableSources.length) % tvNavigableSources.length;
@@ -579,24 +618,12 @@ export default function App() {
 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        if (tvFocusArea === 'categories') {
-          setTvCategoryIndex((prev) => (prev + 1) % tvCategoryOptions.length);
-        } else if (tvFocusArea === 'playerControls') {
-          setTvPlayerControlIndex((prev) => (prev + 1) % tvPlayerControls.length);
-        } else {
-          moveArea(1);
-        }
+        focusRightPanel();
       }
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        if (tvFocusArea === 'categories') {
-          setTvCategoryIndex((prev) => (prev - 1 + tvCategoryOptions.length) % tvCategoryOptions.length);
-        } else if (tvFocusArea === 'playerControls') {
-          setTvPlayerControlIndex((prev) => (prev - 1 + tvPlayerControls.length) % tvPlayerControls.length);
-        } else {
-          moveArea(-1);
-        }
+        focusLeftPanel();
       }
 
       if (event.key === 'Enter' || event.key === ' ') {
@@ -1822,6 +1849,10 @@ export default function App() {
     const target =
       enabledInActiveCategory[(safeIndex + step + enabledInActiveCategory.length) % enabledInActiveCategory.length];
     triedInCycleRef.current = new Set([target.id]);
+    if (isTvMode) {
+      setFocusedSourceId(target.id);
+      setTvFocusArea('sources');
+    }
     setActiveSourceId(target.id);
   }
 
@@ -2538,8 +2569,8 @@ export default function App() {
                 </div>
                 {isTvMode && (
                   <p className="text-xs text-emerald-300">
-                    TV modu aktif: Sol/Sag ile kategori ve oynatici kontrollerini sec, Yukari/Asagi ile bolum degistir,
-                    Enter ile uygula.
+                    TV modu aktif: Sol ile sol panele, Sag ile yayin paneline gec. CH+/CH- (veya PageUp/PageDown)
+                    ile kanal degistir. Yukari/Asagi ile secimi degistir, Enter ile uygula.
                   </p>
                 )}
                 {isAdmin && selectedCategoryFilter !== 'all' && (
