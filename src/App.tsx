@@ -341,6 +341,8 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [newCategory, setNewCategory] = useState<SourceCategory>('sports');
+  const [addSourceMessage, setAddSourceMessage] = useState('');
+  const [addSourceMessageType, setAddSourceMessageType] = useState<'info' | 'success' | 'error'>('info');
   const [m3uUrl, setM3uUrl] = useState('');
   const [m3uText, setM3uText] = useState('');
   const [m3uFileName, setM3uFileName] = useState('');
@@ -1393,12 +1395,19 @@ export default function App() {
     event.preventDefault();
     if (!requireAdmin()) return;
 
-    if (!newName.trim()) return;
+    setAddSourceMessage('');
+    setAddSourceMessageType('info');
+
+    if (!newName.trim()) {
+      setAddSourceMessageType('error');
+      setAddSourceMessage('Kaynak adi bos olamaz.');
+      return;
+    }
     const normalizedName = newName.trim().toLowerCase();
     const normalizedUrl = normalizeUrl(newUrl);
     if (!isValidUrl(normalizedUrl)) {
-      setPlayerState('failed');
-      setPlayerMessage('Kaynak URL gecersiz. http veya https ile baslayan bir link girin.');
+      setAddSourceMessageType('error');
+      setAddSourceMessage('Kaynak URL gecersiz. http veya https ile baslayan bir link girin.');
       return;
     }
 
@@ -1406,20 +1415,20 @@ export default function App() {
     const hasSameUrl = sources.some((source) => source.url.trim().toLowerCase() === normalizedUrl.toLowerCase());
 
     if (hasSameName && hasSameUrl) {
-      setPlayerState('failed');
-      setPlayerMessage('Ayni isimde ve ayni URLde bir kaynak zaten var.');
+      setAddSourceMessageType('error');
+      setAddSourceMessage('Ayni isimde ve ayni URLde bir kaynak zaten var.');
       return;
     }
 
     if (hasSameName) {
-      setPlayerState('failed');
-      setPlayerMessage('Ayni isimde bir kaynak zaten var.');
+      setAddSourceMessageType('error');
+      setAddSourceMessage('Ayni isimde bir kaynak zaten var.');
       return;
     }
 
     if (hasSameUrl) {
-      setPlayerState('failed');
-      setPlayerMessage('Ayni URLde bir kaynak zaten var.');
+      setAddSourceMessageType('error');
+      setAddSourceMessage('Ayni URLde bir kaynak zaten var.');
       return;
     }
 
@@ -1450,6 +1459,8 @@ export default function App() {
       if (error) {
         setPlayerState('failed');
         setPlayerMessage(`Kaynak buluta kaydedilemedi: ${error.message}`);
+        setAddSourceMessageType('error');
+        setAddSourceMessage(`Kaynak eklenemedi: ${error.message}`);
         return;
       }
 
@@ -1457,6 +1468,8 @@ export default function App() {
       if (parsed.length === 0) {
         setPlayerState('failed');
         setPlayerMessage('Kaynak kaydedildi ama veri okunamadi. Tablo kolonlarini kontrol edin.');
+        setAddSourceMessageType('error');
+        setAddSourceMessage('Kaynak kaydedildi ama veri okunamadi.');
         return;
       }
 
@@ -1472,6 +1485,8 @@ export default function App() {
     setNewName('');
     setNewUrl('');
     setNewCategory('sports');
+    setAddSourceMessageType('success');
+    setAddSourceMessage('Kaynak eklendi.');
   }
 
   async function saveImportedChannels(channels: ParsedM3uChannel[]) {
@@ -2361,14 +2376,20 @@ export default function App() {
               <h2 className="text-sm font-medium text-zinc-200">Yeni Kaynak Ekle</h2>
               <input
                 value={newName}
-                onChange={(event) => setNewName(event.target.value)}
+                onChange={(event) => {
+                  setNewName(event.target.value);
+                  if (addSourceMessage) setAddSourceMessage('');
+                }}
                 placeholder="Kaynak adi"
                 disabled={isSaving || isLoadingSources}
                 className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
               />
               <input
                 value={newUrl}
-                onChange={(event) => setNewUrl(event.target.value)}
+                onChange={(event) => {
+                  setNewUrl(event.target.value);
+                  if (addSourceMessage) setAddSourceMessage('');
+                }}
                 placeholder="https://..."
                 disabled={isSaving || isLoadingSources}
                 className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
@@ -2380,7 +2401,10 @@ export default function App() {
                 <label className="text-xs text-zinc-400">Tur:</label>
                 <select
                   value={newCategory}
-                  onChange={(event) => setNewCategory(event.target.value as SourceCategory)}
+                  onChange={(event) => {
+                    setNewCategory(event.target.value as SourceCategory);
+                    if (addSourceMessage) setAddSourceMessage('');
+                  }}
                   disabled={isSaving || isLoadingSources}
                   className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-60"
                 >
@@ -2398,6 +2422,19 @@ export default function App() {
                   {isSaving ? 'Kaydediliyor...' : 'Ekle'}
                 </button>
               </div>
+              {addSourceMessage && (
+                <p
+                  className={`text-xs ${
+                    addSourceMessageType === 'error'
+                      ? 'text-rose-300'
+                      : addSourceMessageType === 'success'
+                        ? 'text-emerald-300'
+                        : 'text-zinc-400'
+                  }`}
+                >
+                  {addSourceMessage}
+                </p>
+              )}
               {!canViewContent && storageMode === 'cloud' && (
                 <p className="text-xs text-zinc-500">Yayin listesi icin once izinli e-postayla giris yapmalisin.</p>
               )}
