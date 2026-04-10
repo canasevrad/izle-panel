@@ -2,7 +2,7 @@ import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState
 import { createClient } from '@supabase/supabase-js';
 import Hls from 'hls.js';
 
-type SourceCategory = 'tv' | 'sports' | 'music' | 'hidden';
+type SourceCategory = 'tv' | 'sports' | 'film' | 'music' | 'hidden';
 
 type StreamSource = {
   id: string;
@@ -82,13 +82,14 @@ function normalizeUrl(input: string) {
 
 function categoryLabel(category: SourceCategory) {
   if (category === 'sports') return 'Mac Yayinlari';
+  if (category === 'film') return 'Film';
   if (category === 'tv') return 'TV';
   if (category === 'hidden') return 'Gizli';
   return 'Muzik';
 }
 
 function isSourceCategory(value: string): value is SourceCategory {
-  return value === 'sports' || value === 'tv' || value === 'music' || value === 'hidden';
+  return value === 'sports' || value === 'tv' || value === 'film' || value === 'music' || value === 'hidden';
 }
 
 function stripLegacyFilmPrefix(name: string) {
@@ -104,13 +105,13 @@ function stripHiddenPrefix(name: string) {
 }
 
 function getDisplayCategoryFromStored(storedCategory: string, storedName: string): SourceCategory | null {
-  // Old builds used "film" and a name prefix. Map them to TV in the new 3-category setup.
+  // Keep backwards compatibility for historical film prefix storage.
   if (storedCategory === 'film') {
-    return 'tv';
+    return 'film';
   }
 
   if (storedCategory === 'general' && storedName.startsWith(LEGACY_FILM_PREFIX)) {
-    return 'tv';
+    return 'film';
   }
 
   if (storedCategory === 'general' && storedName.startsWith(MUSIC_CATEGORY_PREFIX)) {
@@ -152,13 +153,21 @@ function formatDateTime(value: string) {
 function inferCategoryFromChannel(name: string, groupTitle: string) {
   const normalized = `${name} ${groupTitle}`.toLowerCase();
   if (/(spor|sport|futbol|football|basket|nba|uefa|champions)/.test(normalized)) return 'sports';
+  if (/(film|movie|sinema|dizi|series|cinema)/.test(normalized)) return 'film';
   if (/(muzik|music|radio|radyo|fm|hits|pop|rock)/.test(normalized)) return 'music';
-  if (/(tv|news|haber|belgesel|movie|sinema|show|kanal)/.test(normalized)) return 'tv';
+  if (/(tv|news|haber|belgesel|show|kanal)/.test(normalized)) return 'tv';
   return 'tv';
 }
 
 function toStoredSourcePayload(name: string, category: SourceCategory) {
   const sanitizedName = stripHiddenPrefix(stripMusicPrefix(stripLegacyFilmPrefix(name.trim())));
+  if (category === 'film') {
+    return {
+      name: `${LEGACY_FILM_PREFIX}${sanitizedName}`,
+      category: 'general',
+    };
+  }
+
   if (category === 'music') {
     return {
       name: `${MUSIC_CATEGORY_PREFIX}${sanitizedName}`,
@@ -484,6 +493,7 @@ export default function App() {
     () => [
       { value: 'all' as const, label: 'Tum kategoriler' },
       { value: 'sports' as const, label: 'Mac Yayinlari' },
+      { value: 'film' as const, label: 'Film' },
       { value: 'tv' as const, label: 'TV' },
       ...(isAdmin ? [{ value: 'music' as const, label: 'Muzik' }] : []),
       ...(isAdmin ? [{ value: 'hidden' as const, label: 'Gizli' }] : []),
@@ -1384,10 +1394,32 @@ export default function App() {
     if (!requireAdmin()) return;
 
     if (!newName.trim()) return;
+    const normalizedName = newName.trim().toLowerCase();
     const normalizedUrl = normalizeUrl(newUrl);
     if (!isValidUrl(normalizedUrl)) {
       setPlayerState('failed');
       setPlayerMessage('Kaynak URL gecersiz. http veya https ile baslayan bir link girin.');
+      return;
+    }
+
+    const hasSameName = sources.some((source) => source.name.trim().toLowerCase() === normalizedName);
+    const hasSameUrl = sources.some((source) => source.url.trim().toLowerCase() === normalizedUrl.toLowerCase());
+
+    if (hasSameName && hasSameUrl) {
+      setPlayerState('failed');
+      setPlayerMessage('Ayni isimde ve ayni URLde bir kaynak zaten var.');
+      return;
+    }
+
+    if (hasSameName) {
+      setPlayerState('failed');
+      setPlayerMessage('Ayni isimde bir kaynak zaten var.');
+      return;
+    }
+
+    if (hasSameUrl) {
+      setPlayerState('failed');
+      setPlayerMessage('Ayni URLde bir kaynak zaten var.');
       return;
     }
 
@@ -2387,6 +2419,7 @@ export default function App() {
                   className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-60"
                 >
                   <option value="sports">Mac Yayinlari</option>
+                  <option value="film">Film</option>
                   <option value="tv">TV</option>
                   <option value="music">Muzik</option>
                   <option value="hidden">Gizli (Sadece Admin)</option>
@@ -2590,6 +2623,7 @@ export default function App() {
                         >
                           <option value="all">Tum kategoriler</option>
                           <option value="sports">Mac Yayinlari</option>
+                          <option value="film">Film</option>
                           <option value="tv">TV</option>
                           {isAdmin && <option value="music">Muzik</option>}
                           {isAdmin && <option value="hidden">Gizli</option>}
@@ -2734,6 +2768,7 @@ export default function App() {
                             className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
                           >
                             <option value="sports">Mac Yayinlari</option>
+                            <option value="film">Film</option>
                             <option value="tv">TV</option>
                             <option value="music">Muzik</option>
                             <option value="hidden">Gizli (Sadece Admin)</option>
