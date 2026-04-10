@@ -1925,40 +1925,6 @@ export default function App() {
     switchToSourceByStep(-1);
   }
 
-  async function toggleSource(id: string) {
-    if (!requireAdmin()) return;
-
-    const target = sources.find((source) => source.id === id);
-    if (!target) return;
-    const nextEnabled = !target.enabled;
-
-    if (storageMode === 'cloud' && supabase) {
-      setIsSaving(true);
-      const { error } = await supabase
-        .from(SUPABASE_TABLE)
-        .update({ enabled: nextEnabled })
-        .eq('id', id);
-      setIsSaving(false);
-
-      if (error) {
-        setPlayerState('failed');
-        setPlayerMessage(`Kaynak durumu guncellenemedi: ${error.message}`);
-        return;
-      }
-    }
-
-    setSources((prev) =>
-      prev.map((source) =>
-        source.id === id
-          ? {
-              ...source,
-              enabled: nextEnabled,
-            }
-          : source,
-      ),
-    );
-  }
-
   function onIframeLoaded() {
     setPlayerState('ready');
     setPlayerMessage('Yayin aktif. Kaynak engellenirse sonraki kaynaga gecebilirsiniz.');
@@ -2721,17 +2687,6 @@ export default function App() {
                             Duzenle
                           </button>
                         )}
-                        <label className="text-xs text-zinc-400">
-                          <input
-                            type="checkbox"
-                            checked={source.enabled}
-                            disabled={!isAdmin}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={() => void toggleSource(source.id)}
-                            className="mr-1"
-                          />
-                          Aktif
-                        </label>
                         {isAdmin && (
                           <button
                             type="button"
