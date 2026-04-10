@@ -452,7 +452,12 @@ export default function App() {
   const cloudAuthReady = storageMode === 'local' || !!authUserEmail;
 
   const accessibleSources = useMemo(
-    () => (isAdmin ? sources : sources.filter((source) => source.category !== 'music' && source.category !== 'hidden')),
+    () =>
+      isAdmin
+        ? sources
+        : sources.filter(
+            (source) => source.category !== 'film' && source.category !== 'music' && source.category !== 'hidden',
+          ),
     [isAdmin, sources],
   );
 
@@ -481,7 +486,7 @@ export default function App() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!isAdmin && (selectedCategoryFilter === 'music' || selectedCategoryFilter === 'hidden')) {
+    if (!isAdmin && (selectedCategoryFilter === 'film' || selectedCategoryFilter === 'music' || selectedCategoryFilter === 'hidden')) {
       setSelectedCategoryFilter('sports');
     }
   }, [isAdmin, selectedCategoryFilter]);
@@ -495,7 +500,7 @@ export default function App() {
     () => [
       { value: 'all' as const, label: 'Tum kategoriler' },
       { value: 'sports' as const, label: 'Mac Yayinlari' },
-      { value: 'film' as const, label: 'Film' },
+      ...(isAdmin ? [{ value: 'film' as const, label: 'Film' }] : []),
       { value: 'tv' as const, label: 'TV' },
       ...(isAdmin ? [{ value: 'music' as const, label: 'Muzik' }] : []),
       ...(isAdmin ? [{ value: 'hidden' as const, label: 'Gizli' }] : []),
@@ -597,6 +602,24 @@ export default function App() {
       }
     }
 
+    function seekVideoBy(seconds: number) {
+      const video = videoRef.current;
+      if (!video || playbackMode !== 'video') return false;
+
+      const target = Math.max(0, video.currentTime + seconds);
+
+      try {
+        if (Number.isFinite(video.duration) && video.duration > 0) {
+          video.currentTime = Math.min(target, video.duration);
+        } else {
+          video.currentTime = target;
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     function handleTvKeyNavigation(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
@@ -608,6 +631,8 @@ export default function App() {
         event.key === 'ChannelUp' || event.key === 'PageUp' || event.key === 'MediaTrackNext';
       const isPreviousChannelKey =
         event.key === 'ChannelDown' || event.key === 'PageDown' || event.key === 'MediaTrackPrevious';
+      const isSeekForwardKey = event.key === 'MediaFastForward';
+      const isSeekBackwardKey = event.key === 'MediaRewind';
 
       // Keep panel switching on Left/Right, but also support direct channel zapping from remote CH keys.
       if (isNextChannelKey || isPreviousChannelKey) {
@@ -620,6 +645,12 @@ export default function App() {
           }
           setTvFocusArea('sources');
         }
+        return;
+      }
+
+      if (isSeekForwardKey || isSeekBackwardKey) {
+        event.preventDefault();
+        seekVideoBy(isSeekForwardKey ? 5 : -5);
         return;
       }
 
@@ -657,11 +688,17 @@ export default function App() {
 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
+        if (tvFocusArea === 'playerControls' && seekVideoBy(5)) {
+          return;
+        }
         focusRightPanel();
       }
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
+        if (tvFocusArea === 'playerControls' && seekVideoBy(-5)) {
+          return;
+        }
         focusLeftPanel();
       }
 
@@ -704,6 +741,7 @@ export default function App() {
     tvCategoryIndex,
     tvPlayerControls,
     tvPlayerControlIndex,
+    playbackMode,
   ]);
 
   useEffect(() => {
@@ -2626,7 +2664,7 @@ export default function App() {
                         >
                           <option value="all">Tum kategoriler</option>
                           <option value="sports">Mac Yayinlari</option>
-                          <option value="film">Film</option>
+                          {isAdmin && <option value="film">Film</option>}
                           <option value="tv">TV</option>
                           {isAdmin && <option value="music">Muzik</option>}
                           {isAdmin && <option value="hidden">Gizli</option>}
