@@ -471,6 +471,7 @@ export default function App() {
 
   const isAdmin = storageMode === 'cloud' ? !!ADMIN_EMAIL && authUserEmail === ADMIN_EMAIL : true;
   const canViewContent = storageMode === 'local' ? true : !!authUserEmail && hasSourceAccess;
+  const isViewerOnlyMode = canViewContent && !isAdmin;
   const cloudAuthReady = storageMode === 'local' || !!authUserEmail;
 
   const accessibleSources = useMemo(
@@ -620,16 +621,16 @@ export default function App() {
     return { ok, failed };
   }, [accessibleSources, sourceHealthById]);
 
-  const tvPlayerControls = useMemo(
-    () =>
-      [
-        { key: 'toggleAutoSwitch' as const, label: `Oto Gecis: ${autoSwitch ? 'Acik' : 'Kapali'}` },
-        { key: 'previousSource' as const, label: 'Onceki Kaynak' },
-        { key: 'nextSource' as const, label: 'Sonraki Kaynak' },
-        { key: 'toggleFullscreen' as const, label: isFullscreen ? 'Tam Ekrandan Cik' : 'Tam Ekran' },
-      ] satisfies Array<{ key: TvPlayerControl; label: string }>,
-    [autoSwitch, isFullscreen],
-  );
+  const tvPlayerControls = useMemo(() => {
+    const controls = [
+      { key: 'toggleAutoSwitch' as const, label: `Oto Gecis: ${autoSwitch ? 'Acik' : 'Kapali'}` },
+      { key: 'previousSource' as const, label: 'Onceki Kaynak' },
+      { key: 'nextSource' as const, label: 'Sonraki Kaynak' },
+      { key: 'toggleFullscreen' as const, label: isFullscreen ? 'Tam Ekrandan Cik' : 'Tam Ekran' },
+    ] satisfies Array<{ key: TvPlayerControl; label: string }>;
+
+    return isAdmin ? controls : controls.filter((control) => control.key !== 'toggleAutoSwitch');
+  }, [autoSwitch, isFullscreen, isAdmin]);
 
   const tvNavigableSources = useMemo(
     () => visibleSources.filter((source) => source.enabled),
@@ -2288,154 +2289,169 @@ export default function App() {
             <p className="text-sm uppercase tracking-[0.22em] text-cyan-300">Yayin Merkezi</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Kaynak Yonetimi ve Hizli Gecis</h1>
             <p className="mt-2 text-sm text-zinc-400">
-              Tum kaynaklarini tek panelden yonet. Bir kaynak acilmazsa tek tikla veya otomatik olarak digerine gec.
+              {isViewerOnlyMode
+                ? 'Kategori secip kanallari ac, kumandadan hizli gecis yap.'
+                : 'Tum kaynaklarini tek panelden yonet. Bir kaynak acilmazsa tek tikla veya otomatik olarak digerine gec.'}
             </p>
             <p className="mt-2 text-xs text-zinc-500">
               Depolama: {storageMode === 'cloud' ? 'Bulut (tum cihazlardan ortak liste)' : 'Lokal (sadece bu cihaz)'}
             </p>
           </div>
 
-          <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
-            {!hasCloudConfigured && (
-              <p className="text-xs text-amber-300">
-                Supabase baglantisi kapali. VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY olmadan giris acilmaz.
-              </p>
-            )}
-            {hasCloudConfigured && !ADMIN_EMAIL && (
-              <p className="text-xs text-amber-300">VITE_ADMIN_EMAIL ayari yok. Env degiskenini tanimlamalisin.</p>
-            )}
+          {!isViewerOnlyMode ? (
+            <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
+              {!hasCloudConfigured && (
+                <p className="text-xs text-amber-300">
+                  Supabase baglantisi kapali. VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY olmadan giris acilmaz.
+                </p>
+              )}
+              {hasCloudConfigured && !ADMIN_EMAIL && (
+                <p className="text-xs text-amber-300">VITE_ADMIN_EMAIL ayari yok. Env degiskenini tanimlamalisin.</p>
+              )}
 
-            <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-2">
+              <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdminLoginPanel((prev) => !prev)}
+                  className="flex w-full items-center justify-between text-left text-xs font-medium text-cyan-200"
+                >
+                  <span>Yonetici Girisi</span>
+                  <span>{showAdminLoginPanel ? 'Kapat' : 'Ac'}</span>
+                </button>
+
+                {showAdminLoginPanel && (
+                  <div className="mt-2 space-y-2">
+                    {storageMode === 'cloud' && authUserEmail && isAdmin ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-zinc-300">Admin oturumu acik: {authUserEmail}</p>
+                        <button
+                          type="button"
+                          onClick={() => void handleLogout()}
+                          className="rounded-md border border-cyan-500/50 px-3 py-2 text-xs text-cyan-100 hover:border-cyan-300"
+                        >
+                          Cikis Yap
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleAdminLogin} className="space-y-2">
+                        <input
+                          value={adminAuthEmail}
+                          onChange={(event) => setAdminAuthEmail(event.target.value)}
+                          placeholder="Yonetici e-posta"
+                          disabled={!hasCloudConfigured}
+                          className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
+                        />
+                        <input
+                          type={showAdminPassword ? 'text' : 'password'}
+                          value={adminAuthPassword}
+                          onChange={(event) => setAdminAuthPassword(event.target.value)}
+                          placeholder="Sifre"
+                          disabled={!hasCloudConfigured}
+                          className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
+                        />
+                        <label className="flex items-center gap-2 text-xs text-cyan-200/80">
+                          <input
+                            type="checkbox"
+                            checked={showAdminPassword}
+                            onChange={(event) => setShowAdminPassword(event.target.checked)}
+                            className="accent-cyan-400"
+                          />
+                          Sifreyi goster
+                        </label>
+                        <button
+                          type="submit"
+                          disabled={isAdminAuthSubmitting || !ADMIN_EMAIL || !hasCloudConfigured}
+                          className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isAdminAuthSubmitting ? 'Giris yapiliyor...' : 'Admin Girisi Yap'}
+                        </button>
+                      </form>
+                    )}
+                    {adminAuthMessage && <p className="text-xs text-cyan-100/90">{adminAuthMessage}</p>}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2">
+                <button
+                  type="button"
+                  onClick={() => setShowViewerLoginPanel((prev) => !prev)}
+                  className="flex w-full items-center justify-between text-left text-xs font-medium text-amber-200"
+                >
+                  <span>Izleyici Girisi</span>
+                  <span>{showViewerLoginPanel ? 'Kapat' : 'Ac'}</span>
+                </button>
+
+                {showViewerLoginPanel && (
+                  <div className="mt-2 space-y-2">
+                    {storageMode === 'cloud' && authUserEmail && !isAdmin ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-zinc-300">Izleyici oturumu acik: {authUserEmail}</p>
+                        <button
+                          type="button"
+                          onClick={() => void handleLogout()}
+                          className="rounded-md border border-amber-500/50 px-3 py-2 text-xs text-amber-100 hover:border-amber-300"
+                        >
+                          Cikis Yap
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleViewerLogin} className="space-y-2">
+                        <input
+                          value={viewerAuthEmail}
+                          onChange={(event) => setViewerAuthEmail(event.target.value)}
+                          placeholder="Izleyici e-posta"
+                          disabled={!hasCloudConfigured}
+                          className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
+                        />
+                        <input
+                          type={showViewerPassword ? 'text' : 'password'}
+                          value={viewerAuthPassword}
+                          onChange={(event) => setViewerAuthPassword(event.target.value)}
+                          placeholder="Sifre"
+                          disabled={!hasCloudConfigured}
+                          className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
+                        />
+                        <label className="flex items-center gap-2 text-xs text-amber-200/80">
+                          <input
+                            type="checkbox"
+                            checked={showViewerPassword}
+                            onChange={(event) => setShowViewerPassword(event.target.checked)}
+                            className="accent-amber-400"
+                          />
+                          Sifreyi goster
+                        </label>
+                        <button
+                          type="submit"
+                          disabled={isViewerAuthSubmitting || !hasCloudConfigured}
+                          className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isViewerAuthSubmitting ? 'Giris yapiliyor...' : 'Izleyici Girisi Yap'}
+                        </button>
+                      </form>
+                    )}
+                    {viewerAuthMessage && <p className="text-xs text-amber-100/90">{viewerAuthMessage}</p>}
+                    {storageMode === 'cloud' && authUserEmail && (
+                      <p className={`text-xs ${isAdmin ? 'text-emerald-300' : 'text-amber-300'}`}>
+                        Aktif hesap: {authUserEmail} ({isAdmin ? 'Admin' : 'Izleyici'})
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-100">
+              <span>Izleyici oturumu: {authUserEmail}</span>
               <button
                 type="button"
-                onClick={() => setShowAdminLoginPanel((prev) => !prev)}
-                className="flex w-full items-center justify-between text-left text-xs font-medium text-cyan-200"
+                onClick={() => void handleLogout()}
+                className="rounded border border-amber-500/60 px-2 py-1 hover:border-amber-300"
               >
-                <span>Yonetici Girisi</span>
-                <span>{showAdminLoginPanel ? 'Kapat' : 'Ac'}</span>
+                Cikis Yap
               </button>
-
-              {showAdminLoginPanel && (
-                <div className="mt-2 space-y-2">
-                  {storageMode === 'cloud' && authUserEmail && isAdmin ? (
-                    <div className="space-y-2">
-                      <p className="text-xs text-zinc-300">Admin oturumu acik: {authUserEmail}</p>
-                      <button
-                        type="button"
-                        onClick={() => void handleLogout()}
-                        className="rounded-md border border-cyan-500/50 px-3 py-2 text-xs text-cyan-100 hover:border-cyan-300"
-                      >
-                        Cikis Yap
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleAdminLogin} className="space-y-2">
-                      <input
-                        value={adminAuthEmail}
-                        onChange={(event) => setAdminAuthEmail(event.target.value)}
-                        placeholder="Yonetici e-posta"
-                        disabled={!hasCloudConfigured}
-                        className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
-                      />
-                      <input
-                        type={showAdminPassword ? 'text' : 'password'}
-                        value={adminAuthPassword}
-                        onChange={(event) => setAdminAuthPassword(event.target.value)}
-                        placeholder="Sifre"
-                        disabled={!hasCloudConfigured}
-                        className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
-                      />
-                      <label className="flex items-center gap-2 text-xs text-cyan-200/80">
-                        <input
-                          type="checkbox"
-                          checked={showAdminPassword}
-                          onChange={(event) => setShowAdminPassword(event.target.checked)}
-                          className="accent-cyan-400"
-                        />
-                        Sifreyi goster
-                      </label>
-                      <button
-                        type="submit"
-                        disabled={isAdminAuthSubmitting || !ADMIN_EMAIL || !hasCloudConfigured}
-                        className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isAdminAuthSubmitting ? 'Giris yapiliyor...' : 'Admin Girisi Yap'}
-                      </button>
-                    </form>
-                  )}
-                  {adminAuthMessage && <p className="text-xs text-cyan-100/90">{adminAuthMessage}</p>}
-                </div>
-              )}
             </div>
-
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2">
-              <button
-                type="button"
-                onClick={() => setShowViewerLoginPanel((prev) => !prev)}
-                className="flex w-full items-center justify-between text-left text-xs font-medium text-amber-200"
-              >
-                <span>Izleyici Girisi</span>
-                <span>{showViewerLoginPanel ? 'Kapat' : 'Ac'}</span>
-              </button>
-
-              {showViewerLoginPanel && (
-                <div className="mt-2 space-y-2">
-                  {storageMode === 'cloud' && authUserEmail && !isAdmin ? (
-                    <div className="space-y-2">
-                      <p className="text-xs text-zinc-300">Izleyici oturumu acik: {authUserEmail}</p>
-                      <button
-                        type="button"
-                        onClick={() => void handleLogout()}
-                        className="rounded-md border border-amber-500/50 px-3 py-2 text-xs text-amber-100 hover:border-amber-300"
-                      >
-                        Cikis Yap
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleViewerLogin} className="space-y-2">
-                      <input
-                        value={viewerAuthEmail}
-                        onChange={(event) => setViewerAuthEmail(event.target.value)}
-                        placeholder="Izleyici e-posta"
-                        disabled={!hasCloudConfigured}
-                        className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
-                      />
-                      <input
-                        type={showViewerPassword ? 'text' : 'password'}
-                        value={viewerAuthPassword}
-                        onChange={(event) => setViewerAuthPassword(event.target.value)}
-                        placeholder="Sifre"
-                        disabled={!hasCloudConfigured}
-                        className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
-                      />
-                      <label className="flex items-center gap-2 text-xs text-amber-200/80">
-                        <input
-                          type="checkbox"
-                          checked={showViewerPassword}
-                          onChange={(event) => setShowViewerPassword(event.target.checked)}
-                          className="accent-amber-400"
-                        />
-                        Sifreyi goster
-                      </label>
-                      <button
-                        type="submit"
-                        disabled={isViewerAuthSubmitting || !hasCloudConfigured}
-                        className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isViewerAuthSubmitting ? 'Giris yapiliyor...' : 'Izleyici Girisi Yap'}
-                      </button>
-                    </form>
-                  )}
-                  {viewerAuthMessage && <p className="text-xs text-amber-100/90">{viewerAuthMessage}</p>}
-                  {storageMode === 'cloud' && authUserEmail && (
-                    <p className={`text-xs ${isAdmin ? 'text-emerald-300' : 'text-amber-300'}`}>
-                      Aktif hesap: {authUserEmail} ({isAdmin ? 'Admin' : 'Izleyici'})
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
           {isAdmin && storageMode === 'cloud' && (
             <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
@@ -2629,18 +2645,19 @@ export default function App() {
             </form>
           )}
 
-          <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-            <button
-              type="button"
-              onClick={() => setShowIptvTools((prev) => !prev)}
-              className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
-            >
-              <span>IPTV / M3U Donusturucu</span>
-              <span className="text-xs text-zinc-400">{showIptvTools ? 'Kapat' : 'Ac'}</span>
-            </button>
+          {isAdmin && (
+            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+              <button
+                type="button"
+                onClick={() => setShowIptvTools((prev) => !prev)}
+                className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
+              >
+                <span>IPTV / M3U Donusturucu</span>
+                <span className="text-xs text-zinc-400">{showIptvTools ? 'Kapat' : 'Ac'}</span>
+              </button>
 
-            {showIptvTools && (
-              <div className="space-y-3">
+              {showIptvTools && (
+                <div className="space-y-3">
                 <p className="text-xs text-zinc-400">M3U linki veya dosyasi yukleyip TXT (Kanal Adi | URL) olusturabilirsin.</p>
 
                 <form onSubmit={importM3uFromUrl} className="space-y-2">
@@ -2728,9 +2745,10 @@ export default function App() {
                     {iptvMessage}
                   </p>
                 )}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
             <button
@@ -2746,7 +2764,9 @@ export default function App() {
               <>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-zinc-500">
-                    Kaynak sayisinda limit yok. Istedigin kadar kaynak ekleyebilir, surukle-birak ile sirayi degistirebilirsin.
+                    {isAdmin
+                      ? 'Kaynak sayisinda limit yok. Istedigin kadar kaynak ekleyebilir, surukle-birak ile sirayi degistirebilirsin.'
+                      : 'Kategori secip kanali ac. Izleyici modunda sadece izleme kontrolleri gosterilir.'}
                   </p>
                   <div className="flex items-center gap-3">
                     <button
@@ -3116,13 +3136,15 @@ export default function App() {
                     </button>
                   );
                 })}
-                <button
-                  type="button"
-                  onClick={() => setAutoOpenInNewTabOnFail((prev) => !prev)}
-                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500"
-                >
-                  Acilmazsa Yeni Sekme: {autoOpenInNewTabOnFail ? 'Acik' : 'Kapali'}
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setAutoOpenInNewTabOnFail((prev) => !prev)}
+                    className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500"
+                  >
+                    Acilmazsa Yeni Sekme: {autoOpenInNewTabOnFail ? 'Acik' : 'Kapali'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={openActiveSourceInNewTab}
