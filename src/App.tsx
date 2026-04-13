@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Hls from 'hls.js';
 
@@ -28,6 +28,14 @@ type AccessLogRecord = {
   created_at: string;
 };
 
+type SourceHealthStatus = 'unknown' | 'ok' | 'failed';
+
+type SourceHealthRecord = {
+  status: SourceHealthStatus;
+  checkedAt: number;
+  detail: string;
+};
+
 type TvFocusArea = 'categories' | 'sources' | 'playerControls';
 type TvPlayerControl = 'toggleAutoSwitch' | 'previousSource' | 'nextSource' | 'toggleFullscreen';
 
@@ -42,6 +50,9 @@ const LEGACY_FILM_PREFIX = '[FILM] ';
 const MUSIC_CATEGORY_PREFIX = '[MUZIK] ';
 const HIDDEN_CATEGORY_PREFIX = '[GIZLI] ';
 const AUTO_SWITCH_MIN_SOURCE_WAIT_MS = 3500;
+const AUTO_HEALTH_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const HEALTH_CHECK_TIMEOUT_MS = 7000;
+const HEALTH_CHECK_SPACING_MS = 450;
 
 const supabase =
   SUPABASE_URL && SUPABASE_ANON_KEY
@@ -295,6 +306,12 @@ function buildTxtFromChannels(channels: ParsedM3uChannel[]) {
   return channels.map((channel) => `${channel.name} | ${channel.url}`).join('\n');
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function sanitizeSources(input: unknown) {
   if (!Array.isArray(input)) return [] as StreamSource[];
 
@@ -404,6 +421,10 @@ export default function App() {
   const [tvCategoryIndex, setTvCategoryIndex] = useState(0);
   const [tvPlayerControlIndex, setTvPlayerControlIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sourceHealthById, setSourceHealthById] = useState<Record<string, SourceHealthRecord>>({});
+  const [isHealthScanRunning, setIsHealthScanRunning] = useState(false);
+  const [autoHealthCheckEnabled, setAutoHealthCheckEnabled] = useState(true);
+  const [healthScanMessage, setHealthScanMessage] = useState('');
   const hasCloudConfigured = Boolean(supabase);
 
   const triedInCycleRef = useRef<Set<string>>(new Set());
@@ -416,6 +437,7 @@ export default function App() {
   const sourceLoadStartedAtRef = useRef(0);
   const failedAutoOpenAttemptRef = useRef('');
   const wasAdminRef = useRef(false);
+  const lastHealthScanAtRef = useRef(0);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -496,6 +518,85 @@ export default function App() {
     return accessibleSources.filter((source) => source.category === selectedCategoryFilter);
   }, [selectedCategoryFilter, accessibleSources]);
 
+  const runSourceHealthScan = useCallback(
+    async (origin: 'auto' | 'manual' = 'manual') => {
+      if (!isAdmin || !canViewContent || isHealthScanRunning) return;
+
+      const candidates = accessibleSources.filter((source) => source.enabled && source.id !== activeSourceId);
+      if (candidates.length === 0) {
+        if (origin === 'manual') {
+          setHealthScanMessage('Taranacak uygun kaynak bulunamadi.');
+        }
+        return;
+      }
+
+      setIsHealthScanRunning(true);
+      if (origin === 'manual') {
+        setHealthScanMessage(`Saglik taramasi basladi (${candidates.length} kaynak)...`);
+      }
+
+      let okCount = 0;
+      let failCount = 0;
+
+      for (const source of candidates) {
+        let status: SourceHealthStatus = 'failed';
+        let detail = 'Yanit alinamadi';
+
+        if (window.location.protocol === 'https:' && source.url.startsWith('http://')) {
+          status = 'failed';
+          detail = 'HTTPS sayfada HTTP kaynak acilmaz';
+        } else {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
+          try {
+            const response = await fetch(source.url, {
+              method: 'HEAD',
+              mode: 'no-cors',
+              cache: 'no-store',
+              signal: controller.signal,
+            });
+
+            if (response.type === 'opaque' || response.ok) {
+              status = 'ok';
+              detail = response.type === 'opaque' ? 'Erisim var (opaque response)' : `HTTP ${response.status}`;
+            } else {
+              status = 'failed';
+              detail = `HTTP ${response.status}`;
+            }
+          } catch (error) {
+            status = 'failed';
+            detail = error instanceof Error ? error.message : 'Ag hatasi';
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        }
+
+        if (status === 'ok') {
+          okCount += 1;
+        } else {
+          failCount += 1;
+        }
+
+        setSourceHealthById((prev) => ({
+          ...prev,
+          [source.id]: {
+            status,
+            checkedAt: Date.now(),
+            detail,
+          },
+        }));
+
+        await wait(HEALTH_CHECK_SPACING_MS);
+      }
+
+      lastHealthScanAtRef.current = Date.now();
+      setIsHealthScanRunning(false);
+      setHealthScanMessage(`Saglik taramasi bitti: ${okCount} calisiyor, ${failCount} sorunlu.`);
+    },
+    [accessibleSources, activeSourceId, canViewContent, isAdmin, isHealthScanRunning],
+  );
+
   const tvCategoryOptions = useMemo(
     () => [
       { value: 'all' as const, label: 'Tum kategoriler' },
@@ -507,6 +608,17 @@ export default function App() {
     ],
     [isAdmin],
   );
+
+  const healthSummary = useMemo(() => {
+    let ok = 0;
+    let failed = 0;
+    for (const source of accessibleSources) {
+      const status = sourceHealthById[source.id]?.status;
+      if (status === 'ok') ok += 1;
+      if (status === 'failed') failed += 1;
+    }
+    return { ok, failed };
+  }, [accessibleSources, sourceHealthById]);
 
   const tvPlayerControls = useMemo(
     () =>
@@ -563,6 +675,44 @@ export default function App() {
       setTvFocusArea('categories');
     }
   }, [isTvMode, tvFocusArea, tvNavigableSources.length]);
+
+  useEffect(() => {
+    // Keep health map aligned with current source list.
+    const sourceIds = new Set(sources.map((source) => source.id));
+    setSourceHealthById((prev) => {
+      let changed = false;
+      const next: Record<string, SourceHealthRecord> = {};
+      for (const [id, record] of Object.entries(prev)) {
+        if (sourceIds.has(id)) {
+          next[id] = record;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [sources]);
+
+  useEffect(() => {
+    if (!isAdmin || !canViewContent || !autoHealthCheckEnabled) return;
+
+    const elapsed = Date.now() - lastHealthScanAtRef.current;
+    const initialDelay =
+      lastHealthScanAtRef.current === 0 ? 15000 : Math.max(10000, AUTO_HEALTH_CHECK_INTERVAL_MS - elapsed);
+
+    const kickoffTimer = window.setTimeout(() => {
+      void runSourceHealthScan('auto');
+    }, initialDelay);
+
+    const intervalId = window.setInterval(() => {
+      void runSourceHealthScan('auto');
+    }, AUTO_HEALTH_CHECK_INTERVAL_MS);
+
+    return () => {
+      window.clearTimeout(kickoffTimer);
+      window.clearInterval(intervalId);
+    };
+  }, [isAdmin, canViewContent, autoHealthCheckEnabled, runSourceHealthScan]);
 
   useEffect(() => {
     if (!isTvMode || !canViewContent) return;
@@ -2673,6 +2823,32 @@ export default function App() {
                     )}
                   </div>
                 </div>
+                {isAdmin && (
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAutoHealthCheckEnabled((prev) => !prev)}
+                        className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:border-zinc-500"
+                      >
+                        Oto Saglik Taramasi: {autoHealthCheckEnabled ? 'Acik' : 'Kapali'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void runSourceHealthScan('manual')}
+                        disabled={isHealthScanRunning}
+                        className="rounded-md border border-cyan-600/60 px-2 py-1 text-xs text-cyan-200 transition hover:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isHealthScanRunning ? 'Taraniyor...' : 'Simdi Tara'}
+                      </button>
+                      <span className="text-xs text-zinc-400">Durum: {healthSummary.ok} calisiyor, {healthSummary.failed} sorunlu</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Oto tarama acikken sistem kaynaklari arka planda kontrol eder. Aktif oynatilan kaynak taranmaz.
+                    </p>
+                    {healthScanMessage && <p className="mt-1 text-xs text-emerald-300">{healthScanMessage}</p>}
+                  </div>
+                )}
                 {isTvMode && (
                   <p className="text-xs text-emerald-300">
                     TV modu aktif: Sol ile sol panele, Sag ile yayin paneline gec. CH+/CH- (veya PageUp/PageDown)
@@ -2735,6 +2911,17 @@ export default function App() {
                             {source.name}
                           </p>
                         <p className="text-xs text-zinc-400">{categoryLabel(source.category)}</p>
+                        {isAdmin && sourceHealthById[source.id] && (
+                          <p
+                            className={`text-[11px] ${
+                              sourceHealthById[source.id].status === 'ok' ? 'text-emerald-300' : 'text-amber-300'
+                            }`}
+                            title={sourceHealthById[source.id].detail}
+                          >
+                            {sourceHealthById[source.id].status === 'ok' ? 'Saglik: Calisiyor' : 'Saglik: Sorunlu'} -{' '}
+                            {formatDateTime(new Date(sourceHealthById[source.id].checkedAt).toISOString())}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {isAdmin && selectedCategoryFilter === 'all' && (
