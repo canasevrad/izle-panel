@@ -496,6 +496,7 @@ export default function App() {
   const [m3uFileName, setM3uFileName] = useState('');
   const [showIptvTools, setShowIptvTools] = useState(false);
   const [showSourceList, setShowSourceList] = useState(true);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [parsedM3uChannels, setParsedM3uChannels] = useState<ParsedM3uChannel[]>([]);
   const [txtPreviewContent, setTxtPreviewContent] = useState('');
   const [showTxtPreview, setShowTxtPreview] = useState(false);
@@ -632,6 +633,12 @@ export default function App() {
       setShowSourceList(false);
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isLeftPanelOpen && tvFocusArea !== 'playerControls') {
+      setTvFocusArea('playerControls');
+    }
+  }, [isLeftPanelOpen, tvFocusArea]);
 
   useEffect(() => {
     // Reset to Match Broadcasts whenever a new admin session starts.
@@ -896,6 +903,9 @@ export default function App() {
     if (!isTvMode || !canViewContent) return;
 
     function focusLeftPanel() {
+      if (!isLeftPanelOpen) {
+        setIsLeftPanelOpen(true);
+      }
       if (tvNavigableSources.length > 0) {
         setTvFocusArea('sources');
       } else {
@@ -1070,6 +1080,7 @@ export default function App() {
     tvPlayerControls,
     tvPlayerControlIndex,
     playbackMode,
+    isLeftPanelOpen,
   ]);
 
   useEffect(() => {
@@ -2501,8 +2512,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 lg:h-screen lg:overflow-hidden">
-      <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:grid lg:h-full lg:grid-cols-[minmax(340px,430px)_minmax(0,1fr)] lg:gap-6 lg:space-y-0 lg:px-8 lg:py-6">
-        <section className="space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2">
+      <main
+        className={`mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:h-full lg:space-y-0 lg:px-8 lg:py-6 ${
+          isLeftPanelOpen ? 'lg:grid lg:grid-cols-[minmax(340px,430px)_minmax(0,1fr)] lg:gap-6' : ''
+        }`}
+      >
+        <section className={`space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2 ${isLeftPanelOpen ? '' : 'hidden'}`}>
           <div>
             <p className="text-sm uppercase tracking-[0.22em] text-cyan-300">Yayin Merkezi</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Kaynak Yonetimi ve Hizli Gecis</h1>
@@ -3268,6 +3283,13 @@ export default function App() {
               <p className="text-xs text-zinc-500">Cozunurluk: {videoResolution}</p>
               <p className="text-xs text-zinc-500">FPS: {videoFps}</p>
               <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsLeftPanelOpen((prev) => !prev)}
+                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500"
+                >
+                  Sol Panel: {isLeftPanelOpen ? 'Acik' : 'Kapali'}
+                </button>
                 <div className="flex items-center gap-1 rounded-md border border-zinc-700 p-1">
                   <button
                     type="button"
