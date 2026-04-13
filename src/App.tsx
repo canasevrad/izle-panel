@@ -38,6 +38,7 @@ type SourceHealthRecord = {
 
 type TvFocusArea = 'categories' | 'sources' | 'playerControls';
 type TvPlayerControl = 'toggleAutoSwitch' | 'previousSource' | 'nextSource' | 'toggleFullscreen';
+type MultiViewMode = 'single' | 'double' | 'quad';
 
 const STORAGE_KEY = 'stream-hub-sources-v1';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -340,6 +341,136 @@ function sanitizeSources(input: unknown) {
     .filter((item): item is StreamSource => Boolean(item));
 }
 
+type MultiViewPlayerTileProps = {
+  slotIndex: number;
+  sourceId: string;
+  sources: StreamSource[];
+  onSourceChange: (slotIndex: number, sourceId: string) => void;
+  allowAudio: boolean;
+};
+
+function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, allowAudio }: MultiViewPlayerTileProps) {
+  const source = sources.find((item) => item.id === sourceId) ?? null;
+  const playbackMode = source && isDirectMediaUrl(source.url) ? 'video' : 'iframe';
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const [tileState, setTileState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !source || playbackMode !== 'video') return;
+
+    setTileState('loading');
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+
+    const startPlayback = async () => {
+      video.muted = !allowAudio;
+      try {
+        await video.play();
+        setTileState('ready');
+      } catch {
+        // Keep tile visible even if autoplay is blocked.
+        setTileState('ready');
+      }
+    };
+
+    if (isHlsUrl(source.url)) {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = source.url;
+      } else if (Hls.isSupported()) {
+        const hls = new Hls();
+        hlsRef.current = hls;
+        hls.loadSource(source.url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            setTileState('failed');
+          }
+        });
+      } else {
+        setTileState('failed');
+      }
+    } else {
+      video.src = source.url;
+    }
+
+    const onCanPlay = () => {
+      void startPlayback();
+    };
+
+    const onError = () => {
+      setTileState('failed');
+    };
+
+    video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('error', onError);
+
+    return () => {
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('error', onError);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [source, playbackMode, allowAudio]);
+
+  useEffect(() => {
+    if (!source || playbackMode !== 'iframe') {
+      return;
+    }
+    setTileState('loading');
+  }, [source, playbackMode]);
+
+  return (
+    <article className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-medium text-zinc-300">Pencere {slotIndex + 1}</p>
+        <span className="text-[11px] text-zinc-500">
+          {tileState === 'failed' ? 'Sorunlu' : tileState === 'ready' ? 'Hazir' : 'Yukleniyor'}
+        </span>
+        <select
+          value={sourceId}
+          onChange={(event) => onSourceChange(slotIndex, event.target.value)}
+          className="ml-auto min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+        >
+          {sources.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="aspect-video w-full overflow-hidden rounded bg-black">
+        {!source ? (
+          <div className="flex h-full items-center justify-center text-xs text-zinc-500">Kaynak secin</div>
+        ) : playbackMode === 'video' ? (
+          <video ref={videoRef} className="h-full w-full" controls playsInline autoPlay />
+        ) : (
+          <iframe
+            title={`Coklu Yayin ${slotIndex + 1}`}
+            src={source.url}
+            className="h-full w-full"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            onLoad={() => setTileState('ready')}
+            onError={() => setTileState('failed')}
+          />
+        )}
+      </div>
+    </article>
+  );
+}
+
 function getLocalSources() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return defaultSources;
@@ -416,6 +547,8 @@ export default function App() {
   const [dragOverSourceId, setDragOverSourceId] = useState<string | null>(null);
   const [supportsCloudOrdering, setSupportsCloudOrdering] = useState(true);
   const [isTvMode, setIsTvMode] = useState(false);
+  const [multiViewMode, setMultiViewMode] = useState<MultiViewMode>('single');
+  const [multiViewSourceIds, setMultiViewSourceIds] = useState<string[]>([]);
   const [focusedSourceId, setFocusedSourceId] = useState('');
   const [tvFocusArea, setTvFocusArea] = useState<TvFocusArea>('sources');
   const [tvCategoryIndex, setTvCategoryIndex] = useState(0);
@@ -518,6 +651,46 @@ export default function App() {
     if (selectedCategoryFilter === 'all') return accessibleSources;
     return accessibleSources.filter((source) => source.category === selectedCategoryFilter);
   }, [selectedCategoryFilter, accessibleSources]);
+
+  const isMultiView = multiViewMode !== 'single';
+  const multiViewSlotCount = multiViewMode === 'quad' ? 4 : multiViewMode === 'double' ? 2 : 1;
+  const enabledVisibleSources = useMemo(() => visibleSources.filter((source) => source.enabled), [visibleSources]);
+
+  useEffect(() => {
+    if (!isMultiView) return;
+
+    setMultiViewSourceIds((prev) => {
+      const availableIds = enabledVisibleSources.map((source) => source.id);
+      const next: string[] = [];
+      const used = new Set<string>();
+
+      for (let index = 0; index < multiViewSlotCount; index += 1) {
+        const previousId = prev[index];
+        if (previousId && availableIds.includes(previousId) && !used.has(previousId)) {
+          next.push(previousId);
+          used.add(previousId);
+          continue;
+        }
+
+        const fallbackId = availableIds.find((id) => !used.has(id));
+        if (fallbackId) {
+          next.push(fallbackId);
+          used.add(fallbackId);
+        } else {
+          next.push('');
+        }
+      }
+
+      return next;
+    });
+  }, [isMultiView, enabledVisibleSources, multiViewSlotCount]);
+
+  useEffect(() => {
+    if (!isMultiView) return;
+    const primaryId = multiViewSourceIds[0];
+    if (!primaryId || primaryId === activeSourceId) return;
+    setActiveSourceId(primaryId);
+  }, [isMultiView, multiViewSourceIds, activeSourceId]);
 
   const runSourceHealthScan = useCallback(
     async (origin: 'auto' | 'manual' = 'manual') => {
@@ -629,8 +802,12 @@ export default function App() {
       { key: 'toggleFullscreen' as const, label: isFullscreen ? 'Tam Ekrandan Cik' : 'Tam Ekran' },
     ] satisfies Array<{ key: TvPlayerControl; label: string }>;
 
-    return isAdmin ? controls : controls.filter((control) => control.key !== 'toggleAutoSwitch');
-  }, [autoSwitch, isFullscreen, isAdmin]);
+    let scoped = isAdmin ? controls : controls.filter((control) => control.key !== 'toggleAutoSwitch');
+    if (isMultiView) {
+      scoped = scoped.filter((control) => control.key !== 'toggleFullscreen');
+    }
+    return scoped;
+  }, [autoSwitch, isFullscreen, isAdmin, isMultiView]);
 
   const tvNavigableSources = useMemo(
     () => visibleSources.filter((source) => source.enabled),
@@ -1030,6 +1207,12 @@ export default function App() {
   }, [visibleSources, accessibleSources, activeSourceId]);
 
   useEffect(() => {
+    if (isMultiView) {
+      setPlayerState('idle');
+      setPlayerMessage('Coklu izleme acik. Her pencereden kaynak secip izleyebilirsiniz.');
+      return;
+    }
+
     if (!activeSource) {
       setPlayerState('idle');
       setPlayerMessage('Kaynak secip yayini baslatin.');
@@ -1063,7 +1246,7 @@ export default function App() {
     if (playbackMode === 'iframe') {
       setIframeKey((prev) => prev + 1);
     }
-  }, [activeSource, playbackMode]);
+  }, [activeSource, playbackMode, isMultiView]);
 
   useEffect(() => {
     return () => {
@@ -1073,7 +1256,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!activeSource || !canViewContent || !activeSource.enabled || playbackMode !== 'video') return;
+    if (isMultiView || !activeSource || !canViewContent || !activeSource.enabled || playbackMode !== 'video') return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -1135,10 +1318,10 @@ export default function App() {
       video.removeAttribute('src');
       video.load();
     };
-  }, [activeSource, canViewContent, playbackMode]);
+  }, [activeSource, canViewContent, playbackMode, isMultiView]);
 
   useEffect(() => {
-    if (playbackMode === 'video') return;
+    if (isMultiView || playbackMode === 'video') return;
     hlsRef.current?.destroy();
     hlsRef.current = null;
     setVideoResolution('Iframe kaynagi');
@@ -1148,10 +1331,10 @@ export default function App() {
     video.pause();
     video.removeAttribute('src');
     video.load();
-  }, [playbackMode]);
+  }, [playbackMode, isMultiView]);
 
   useEffect(() => {
-    if (playbackMode !== 'video' || !activeSource || !canViewContent || !activeSource.enabled) {
+    if (isMultiView || playbackMode !== 'video' || !activeSource || !canViewContent || !activeSource.enabled) {
       if (playbackMode === 'video') {
         setVideoResolution('-');
         setVideoFps('-');
@@ -1223,10 +1406,10 @@ export default function App() {
       video.removeEventListener('pause', onEndedOrPause);
       video.removeEventListener('ended', onEndedOrPause);
     };
-  }, [playbackMode, activeSource, canViewContent]);
+  }, [playbackMode, activeSource, canViewContent, isMultiView]);
 
   useEffect(() => {
-    if (playerState !== 'loading') return;
+    if (isMultiView || playerState !== 'loading') return;
 
     const timeoutId = window.setTimeout(() => {
       setPlayerState('failed');
@@ -1234,10 +1417,10 @@ export default function App() {
     }, 8000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [playerState, iframeKey]);
+  }, [playerState, iframeKey, isMultiView]);
 
   useEffect(() => {
-    if (playerState !== 'failed' || !autoSwitch || !activeSource) return;
+    if (isMultiView || playerState !== 'failed' || !autoSwitch || !activeSource) return;
 
     triedInCycleRef.current.add(activeSource.id);
     const enabled = visibleSources.filter((source) => source.enabled);
@@ -1266,7 +1449,7 @@ export default function App() {
     }, switchDelay);
 
     return () => window.clearTimeout(switchTimer);
-  }, [playerState, autoSwitch, activeSource, visibleSources]);
+  }, [playerState, autoSwitch, activeSource, visibleSources, isMultiView]);
 
   useEffect(() => {
     if (playerState === 'failed') return;
@@ -1274,7 +1457,7 @@ export default function App() {
   }, [playerState, activeSourceId]);
 
   useEffect(() => {
-    if (playerState !== 'failed' || !autoOpenInNewTabOnFail || !activeSource) return;
+    if (isMultiView || playerState !== 'failed' || !autoOpenInNewTabOnFail || !activeSource) return;
 
     const attemptKey = `${activeSource.id}:${activeSource.url}`;
     if (failedAutoOpenAttemptRef.current === attemptKey) return;
@@ -1286,7 +1469,7 @@ export default function App() {
     } else {
       setPlayerMessage('Kaynak oynatilamadi. Otomatik yeni sekme engellendi; Yeni Sekmede Ac butonunu kullanin.');
     }
-  }, [playerState, autoOpenInNewTabOnFail, activeSource]);
+  }, [playerState, autoOpenInNewTabOnFail, activeSource, isMultiView]);
 
   function requireAdmin() {
     if (storageMode !== 'cloud') return true;
@@ -2003,7 +2186,31 @@ export default function App() {
     if (isTvMode) {
       setFocusedSourceId(id);
     }
+    if (isMultiView) {
+      setMultiViewSourceIds((prev) => {
+        const next = [...prev];
+        if (next.length === 0) {
+          next.push(id);
+        } else {
+          next[0] = id;
+        }
+        return next;
+      });
+    }
     setActiveSourceId(id);
+  }
+
+  function updateMultiViewSource(slotIndex: number, sourceId: string) {
+    setMultiViewSourceIds((prev) => {
+      const next = [...prev];
+      next[slotIndex] = sourceId;
+      return next;
+    });
+
+    if (slotIndex === 0) {
+      triedInCycleRef.current = new Set([sourceId]);
+      setActiveSourceId(sourceId);
+    }
   }
 
   async function persistSourceOrder(nextSources: StreamSource[]) {
@@ -2117,6 +2324,17 @@ export default function App() {
     if (isTvMode) {
       setFocusedSourceId(target.id);
       setTvFocusArea('sources');
+    }
+    if (isMultiView) {
+      setMultiViewSourceIds((prev) => {
+        const next = [...prev];
+        if (next.length === 0) {
+          next.push(target.id);
+        } else {
+          next[0] = target.id;
+        }
+        return next;
+      });
     }
     setActiveSourceId(target.id);
   }
@@ -3050,6 +3268,35 @@ export default function App() {
               <p className="text-xs text-zinc-500">Cozunurluk: {videoResolution}</p>
               <p className="text-xs text-zinc-500">FPS: {videoFps}</p>
               <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-md border border-zinc-700 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setMultiViewMode('single')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      multiViewMode === 'single' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    Tekli
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMultiViewMode('double')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      multiViewMode === 'double' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    2'li
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMultiViewMode('quad')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      multiViewMode === 'quad' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    4'lu
+                  </button>
+                </div>
                 {tvPlayerControls.map((control, index) => {
                   const isTvFocused = isTvMode && tvFocusArea === 'playerControls' && tvPlayerControlIndex === index;
 
@@ -3145,21 +3392,36 @@ export default function App() {
                     Acilmazsa Yeni Sekme: {autoOpenInNewTabOnFail ? 'Acik' : 'Kapali'}
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={openActiveSourceInNewTab}
-                  disabled={!activeSource}
-                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Yeni Sekmede Ac
-                </button>
+                {!isMultiView && (
+                  <button
+                    type="button"
+                    onClick={openActiveSourceInNewTab}
+                    disabled={!activeSource}
+                    className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Yeni Sekmede Ac
+                  </button>
+                )}
               </div>
             </div>
 
-             <div ref={playerContainerRef} className="aspect-video w-full bg-black">
+             <div ref={playerContainerRef} className={isMultiView ? 'w-full bg-black p-3' : 'aspect-video w-full bg-black'}>
                {!canViewContent ? (
                  <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
                    Yayinlari gormek icin izinli e-posta ile giris yapmalisin.
+                 </div>
+               ) : isMultiView ? (
+                 <div className={`grid gap-3 ${multiViewMode === 'quad' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>
+                   {Array.from({ length: multiViewSlotCount }).map((_, slotIndex) => (
+                     <MultiViewPlayerTile
+                       key={`multi-slot-${slotIndex}`}
+                       slotIndex={slotIndex}
+                       sourceId={multiViewSourceIds[slotIndex] ?? ''}
+                       sources={enabledVisibleSources}
+                       onSourceChange={updateMultiViewSource}
+                       allowAudio={slotIndex === 0}
+                     />
+                   ))}
                  </div>
                ) : activeSource?.enabled ? (
                  playbackMode === 'video' ? (
@@ -3193,7 +3455,7 @@ export default function App() {
               )}
             </div>
 
-            {canViewContent && playerState === 'failed' && activeSource && (
+            {!isMultiView && canViewContent && playerState === 'failed' && activeSource && (
               <div className="border-t border-zinc-800 bg-zinc-950/70 px-4 py-3">
                 <p className="text-xs text-zinc-300">
                   Bu kaynak iframe icinde engellenmis olabilir. Dogrudan kaynak sayfasini yeni sekmede acabilirsin.
@@ -3224,19 +3486,21 @@ export default function App() {
               </div>
             )}
 
-            <div className="border-t border-zinc-800 px-4 py-3">
-              <p
-                className={`text-sm ${
-                  playerState === 'failed'
-                    ? 'text-red-300'
-                    : playerState === 'ready'
-                      ? 'text-emerald-300'
-                      : 'text-zinc-300'
-                }`}
-              >
-                {playerMessage}
-              </p>
-            </div>
+            {!isMultiView && (
+              <div className="border-t border-zinc-800 px-4 py-3">
+                <p
+                  className={`text-sm ${
+                    playerState === 'failed'
+                      ? 'text-red-300'
+                      : playerState === 'ready'
+                        ? 'text-emerald-300'
+                        : 'text-zinc-300'
+                  }`}
+                >
+                  {playerMessage}
+                </p>
+              </div>
+            )}
           </div>
         </section>
       </main>
