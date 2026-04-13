@@ -364,8 +364,8 @@ export default function App() {
   const [playerMessage, setPlayerMessage] = useState('Kaynak secip yayini baslatin.');
   const [videoResolution, setVideoResolution] = useState('-');
   const [videoFps, setVideoFps] = useState('-');
-  const [autoSwitch, setAutoSwitch] = useState(true);
-  const [autoOpenInNewTabOnFail, setAutoOpenInNewTabOnFail] = useState(true);
+  const [autoSwitch, setAutoSwitch] = useState(false);
+  const [autoOpenInNewTabOnFail, setAutoOpenInNewTabOnFail] = useState(false);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [storageMode, setStorageMode] = useState<'cloud' | 'local'>(supabase ? 'cloud' : 'local');
