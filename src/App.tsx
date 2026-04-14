@@ -347,9 +347,10 @@ type MultiViewPlayerTileProps = {
   sources: StreamSource[];
   onSourceChange: (slotIndex: number, sourceId: string) => void;
   allowAudio: boolean;
+  compact: boolean;
 };
 
-function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, allowAudio }: MultiViewPlayerTileProps) {
+function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, allowAudio, compact }: MultiViewPlayerTileProps) {
   const source = sources.find((item) => item.id === sourceId) ?? null;
   const playbackMode = source && isDirectMediaUrl(source.url) ? 'video' : 'iframe';
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -431,7 +432,7 @@ function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, all
   }, [source, playbackMode]);
 
   return (
-    <article className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+    <article className={`space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2 ${compact ? 'flex h-full min-h-0 flex-col' : ''}`}>
       <div className="flex items-center gap-2">
         <p className="text-xs font-medium text-zinc-300">Pencere {slotIndex + 1}</p>
         <span className="text-[11px] text-zinc-500">
@@ -450,7 +451,7 @@ function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, all
         </select>
       </div>
 
-      <div className="aspect-video w-full overflow-hidden rounded bg-black">
+      <div className={`w-full overflow-hidden rounded bg-black ${compact ? 'min-h-0 flex-1' : 'aspect-video'}`}>
         {!source ? (
           <div className="flex h-full items-center justify-center text-xs text-zinc-500">Kaynak secin</div>
         ) : playbackMode === 'video' ? (
@@ -572,6 +573,7 @@ export default function App() {
   const failedAutoOpenAttemptRef = useRef('');
   const wasAdminRef = useRef(false);
   const lastHealthScanAtRef = useRef(0);
+  const leftPanelCloseTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -633,6 +635,29 @@ export default function App() {
       setShowSourceList(false);
     }
   }, [isAdmin]);
+
+  const clearLeftPanelCloseTimer = useCallback(() => {
+    if (leftPanelCloseTimerRef.current !== null) {
+      window.clearTimeout(leftPanelCloseTimerRef.current);
+      leftPanelCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const openLeftPanel = useCallback(() => {
+    clearLeftPanelCloseTimer();
+    setIsLeftPanelOpen(true);
+  }, [clearLeftPanelCloseTimer]);
+
+  const scheduleLeftPanelClose = useCallback(() => {
+    if (isTvMode) return;
+    clearLeftPanelCloseTimer();
+    leftPanelCloseTimerRef.current = window.setTimeout(() => {
+      setIsLeftPanelOpen(false);
+      leftPanelCloseTimerRef.current = null;
+    }, 220);
+  }, [clearLeftPanelCloseTimer, isTvMode]);
+
+  useEffect(() => () => clearLeftPanelCloseTimer(), [clearLeftPanelCloseTimer]);
 
   useEffect(() => {
     if (!isLeftPanelOpen && tvFocusArea !== 'playerControls') {
@@ -903,9 +928,7 @@ export default function App() {
     if (!isTvMode || !canViewContent) return;
 
     function focusLeftPanel() {
-      if (!isLeftPanelOpen) {
-        setIsLeftPanelOpen(true);
-      }
+      openLeftPanel();
       if (tvNavigableSources.length > 0) {
         setTvFocusArea('sources');
       } else {
@@ -1080,7 +1103,7 @@ export default function App() {
     tvPlayerControls,
     tvPlayerControlIndex,
     playbackMode,
-    isLeftPanelOpen,
+    openLeftPanel,
   ]);
 
   useEffect(() => {
@@ -2513,11 +2536,44 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 lg:h-screen lg:overflow-hidden">
       <main
-        className={`mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:h-full lg:space-y-0 lg:px-8 lg:py-6 ${
-          isLeftPanelOpen ? 'lg:grid lg:grid-cols-[minmax(340px,430px)_minmax(0,1fr)] lg:gap-6' : ''
-        }`}
+        className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:grid lg:h-full lg:gap-6 lg:space-y-0 lg:px-8 lg:py-6 lg:transition-[grid-template-columns] lg:duration-300"
+        style={{
+          gridTemplateColumns: isLeftPanelOpen ? 'minmax(340px,430px) minmax(0,1fr)' : '28px minmax(0,1fr)',
+        }}
       >
-        <section className={`space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2 ${isLeftPanelOpen ? '' : 'hidden'}`}>
+        <aside
+          className={`relative ${isLeftPanelOpen ? '' : 'hidden lg:block'} lg:h-full lg:overflow-hidden`}
+          onMouseEnter={() => {
+            if (!isTvMode) {
+              openLeftPanel();
+            }
+          }}
+          onMouseLeave={scheduleLeftPanelClose}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (isLeftPanelOpen) {
+                setIsLeftPanelOpen(false);
+              } else {
+                openLeftPanel();
+              }
+            }}
+            onMouseEnter={() => {
+              if (!isTvMode) {
+                openLeftPanel();
+              }
+            }}
+            className="absolute right-0 top-1/2 z-20 hidden -translate-y-1/2 items-center rounded-l-md border border-zinc-700 bg-zinc-900/95 px-2 py-3 text-xs text-zinc-200 transition hover:border-cyan-400 hover:text-cyan-300 lg:flex"
+            aria-label={isLeftPanelOpen ? 'Sol paneli kapat' : 'Sol paneli ac'}
+          >
+            {isLeftPanelOpen ? '<' : '>'}
+          </button>
+          <section
+            className={`space-y-5 transition-all duration-300 lg:h-full lg:overflow-y-auto lg:pr-2 ${
+              isLeftPanelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-3 opacity-0'
+            }`}
+          >
           <div>
             <p className="text-sm uppercase tracking-[0.22em] text-cyan-300">Yayin Merkezi</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Kaynak Yonetimi ve Hizli Gecis</h1>
@@ -3271,10 +3327,11 @@ export default function App() {
               </>
             )}
           </div>
-        </section>
+          </section>
+        </aside>
 
-        <section className="space-y-5 lg:sticky lg:top-0 lg:self-start">
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70">
+        <section className="space-y-5 lg:sticky lg:top-0 lg:h-full lg:self-start">
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
             <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-3">
               <p className="text-sm text-zinc-300">
                 Aktif Kaynak: <span className="font-medium text-white">{activeSource?.name ?? 'Secilmedi'}</span>
@@ -3427,13 +3484,22 @@ export default function App() {
               </div>
             </div>
 
-             <div ref={playerContainerRef} className={isMultiView ? 'w-full bg-black p-3' : 'aspect-video w-full bg-black'}>
+             <div
+               ref={playerContainerRef}
+               className={isMultiView ? 'w-full bg-black p-3 lg:flex-1 lg:min-h-0' : 'aspect-video w-full bg-black'}
+             >
                {!canViewContent ? (
                  <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
                    Yayinlari gormek icin izinli e-posta ile giris yapmalisin.
                  </div>
                ) : isMultiView ? (
-                 <div className={`grid gap-3 ${multiViewMode === 'quad' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>
+                 <div
+                   className={`grid gap-3 ${
+                     multiViewMode === 'quad'
+                       ? 'grid-cols-1 md:grid-cols-2 lg:h-full lg:grid-cols-2 lg:grid-rows-2'
+                       : 'grid-cols-1 md:grid-cols-2 lg:h-full'
+                   }`}
+                 >
                    {Array.from({ length: multiViewSlotCount }).map((_, slotIndex) => (
                      <MultiViewPlayerTile
                        key={`multi-slot-${slotIndex}`}
@@ -3442,6 +3508,7 @@ export default function App() {
                        sources={enabledVisibleSources}
                        onSourceChange={updateMultiViewSource}
                        allowAudio={slotIndex === 0}
+                       compact={multiViewMode === 'quad'}
                      />
                    ))}
                  </div>
