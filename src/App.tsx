@@ -502,7 +502,7 @@ export default function App() {
   const [m3uFileName, setM3uFileName] = useState('');
   const [showIptvTools, setShowIptvTools] = useState(false);
   const [showSourceList, setShowSourceList] = useState(true);
-  const [leftPanelMode, setLeftPanelMode] = useState<LeftPanelMode>('auto');
+  const [leftPanelMode, setLeftPanelMode] = useState<LeftPanelMode>('open');
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [parsedM3uChannels, setParsedM3uChannels] = useState<ParsedM3uChannel[]>([]);
   const [txtPreviewContent, setTxtPreviewContent] = useState('');
