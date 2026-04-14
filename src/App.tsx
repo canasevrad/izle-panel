@@ -576,6 +576,7 @@ export default function App() {
   const wasAdminRef = useRef(false);
   const lastHealthScanAtRef = useRef(0);
   const leftPanelCloseTimerRef = useRef<number | null>(null);
+  const leftPanelOpenTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -645,21 +646,46 @@ export default function App() {
     }
   }, []);
 
+  const clearLeftPanelOpenTimer = useCallback(() => {
+    if (leftPanelOpenTimerRef.current !== null) {
+      window.clearTimeout(leftPanelOpenTimerRef.current);
+      leftPanelOpenTimerRef.current = null;
+    }
+  }, []);
+
   const openLeftPanel = useCallback(() => {
+    clearLeftPanelOpenTimer();
     clearLeftPanelCloseTimer();
     setIsLeftPanelOpen(true);
-  }, [clearLeftPanelCloseTimer]);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer]);
+
+  const scheduleLeftPanelOpenFromEdge = useCallback(() => {
+    if (isTvMode || isLeftPanelOpen) return;
+    clearLeftPanelCloseTimer();
+    clearLeftPanelOpenTimer();
+    leftPanelOpenTimerRef.current = window.setTimeout(() => {
+      setIsLeftPanelOpen(true);
+      leftPanelOpenTimerRef.current = null;
+    }, 180);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isLeftPanelOpen, isTvMode]);
 
   const scheduleLeftPanelClose = useCallback(() => {
     if (isTvMode) return;
+    clearLeftPanelOpenTimer();
     clearLeftPanelCloseTimer();
     leftPanelCloseTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(false);
       leftPanelCloseTimerRef.current = null;
-    }, 700);
-  }, [clearLeftPanelCloseTimer, isTvMode]);
+    }, 1000);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isTvMode]);
 
-  useEffect(() => () => clearLeftPanelCloseTimer(), [clearLeftPanelCloseTimer]);
+  useEffect(
+    () => () => {
+      clearLeftPanelCloseTimer();
+      clearLeftPanelOpenTimer();
+    },
+    [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer],
+  );
 
   useEffect(() => {
     if (!isLeftPanelOpen && tvFocusArea !== 'playerControls') {
@@ -2539,35 +2565,23 @@ export default function App() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 lg:h-screen lg:overflow-hidden">
       {!isTvMode && !isLeftPanelOpen && (
         <div
-          className="fixed left-0 top-0 z-40 hidden h-screen w-[2px] bg-transparent lg:block"
-          onMouseEnter={openLeftPanel}
+          className="fixed left-0 top-0 z-40 hidden h-screen w-px bg-transparent lg:block"
+          onMouseEnter={scheduleLeftPanelOpenFromEdge}
+          onMouseLeave={clearLeftPanelOpenTimer}
           aria-hidden="true"
         />
       )}
       <main
         className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:grid lg:h-full lg:gap-6 lg:space-y-0 lg:px-8 lg:py-6 lg:transition-[grid-template-columns] lg:duration-300"
         style={{
-          gridTemplateColumns: isLeftPanelOpen ? 'minmax(340px,430px) minmax(0,1fr)' : '28px minmax(0,1fr)',
+          gridTemplateColumns: isLeftPanelOpen ? 'minmax(340px,430px) minmax(0,1fr)' : '0px minmax(0,1fr)',
         }}
       >
         <aside
-          className={`relative ${isLeftPanelOpen ? '' : 'hidden lg:block'} lg:h-full lg:overflow-hidden`}
+          className={`relative lg:h-full lg:overflow-hidden ${isLeftPanelOpen ? '' : 'pointer-events-none'}`}
+          onMouseEnter={clearLeftPanelCloseTimer}
           onMouseLeave={scheduleLeftPanelClose}
         >
-          <button
-            type="button"
-            onClick={() => {
-              if (isLeftPanelOpen) {
-                setIsLeftPanelOpen(false);
-              } else {
-                openLeftPanel();
-              }
-            }}
-            className="absolute right-0 top-1/2 z-20 hidden -translate-y-1/2 items-center rounded-l-md border border-zinc-700 bg-zinc-900/95 px-2 py-3 text-xs text-zinc-200 transition hover:border-cyan-400 hover:text-cyan-300 lg:flex"
-            aria-label={isLeftPanelOpen ? 'Sol paneli kapat' : 'Sol paneli ac'}
-          >
-            {isLeftPanelOpen ? '<' : '>'}
-          </button>
           <section
             className={`space-y-5 transition-all duration-300 lg:h-full lg:overflow-y-auto lg:pr-2 ${
               isLeftPanelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-3 opacity-0'
@@ -3328,6 +3342,31 @@ export default function App() {
           </div>
           </section>
         </aside>
+
+        {!isTvMode && (
+          <button
+            type="button"
+            onClick={() => {
+              clearLeftPanelOpenTimer();
+              clearLeftPanelCloseTimer();
+              setIsLeftPanelOpen((prev) => !prev);
+            }}
+            onMouseEnter={() => {
+              if (isLeftPanelOpen) {
+                clearLeftPanelCloseTimer();
+              }
+            }}
+            onMouseLeave={() => {
+              if (isLeftPanelOpen) {
+                scheduleLeftPanelClose();
+              }
+            }}
+            className="fixed left-0 top-1/2 z-50 hidden -translate-y-1/2 items-center rounded-r-md border border-zinc-700 bg-zinc-900/95 px-2 py-3 text-xs text-zinc-200 transition hover:border-cyan-400 hover:text-cyan-300 lg:flex"
+            aria-label={isLeftPanelOpen ? 'Sol paneli kapat' : 'Sol paneli ac'}
+          >
+            {isLeftPanelOpen ? '<' : '>'}
+          </button>
+        )}
 
         <section className="space-y-5 lg:sticky lg:top-0 lg:h-full lg:self-start">
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70 lg:flex lg:h-full lg:min-h-0 lg:flex-col">
