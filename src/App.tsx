@@ -39,6 +39,7 @@ type SourceHealthRecord = {
 type TvFocusArea = 'categories' | 'sources' | 'playerControls';
 type TvPlayerControl = 'toggleAutoSwitch' | 'previousSource' | 'nextSource' | 'toggleFullscreen';
 type MultiViewMode = 'single' | 'double' | 'quad';
+type LeftPanelMode = 'open' | 'closed' | 'auto';
 
 const STORAGE_KEY = 'stream-hub-sources-v1';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -501,7 +502,8 @@ export default function App() {
   const [m3uFileName, setM3uFileName] = useState('');
   const [showIptvTools, setShowIptvTools] = useState(false);
   const [showSourceList, setShowSourceList] = useState(true);
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [leftPanelMode, setLeftPanelMode] = useState<LeftPanelMode>('auto');
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [parsedM3uChannels, setParsedM3uChannels] = useState<ParsedM3uChannel[]>([]);
   const [txtPreviewContent, setTxtPreviewContent] = useState('');
   const [showTxtPreview, setShowTxtPreview] = useState(false);
@@ -565,6 +567,7 @@ export default function App() {
   const [autoHealthCheckEnabled, setAutoHealthCheckEnabled] = useState(true);
   const [healthScanMessage, setHealthScanMessage] = useState('');
   const hasCloudConfigured = Boolean(supabase);
+  const isLeftPanelAuto = leftPanelMode === 'auto';
 
   const triedInCycleRef = useRef<Set<string>>(new Set());
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -662,24 +665,42 @@ export default function App() {
   }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer]);
 
   const scheduleLeftPanelOpenFromEdge = useCallback(() => {
-    if (isTvMode || isLeftPanelOpen) return;
+    if (isTvMode || !isLeftPanelAuto || isLeftPanelOpen) return;
     clearLeftPanelCloseTimer();
     clearLeftPanelOpenTimer();
     leftPanelOpenTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(true);
       leftPanelOpenTimerRef.current = null;
     }, LEFT_PANEL_OPEN_DELAY_MS);
-  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isLeftPanelOpen, isTvMode]);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isLeftPanelAuto, isLeftPanelOpen, isTvMode]);
 
   const scheduleLeftPanelClose = useCallback(() => {
-    if (isTvMode) return;
+    if (isTvMode || !isLeftPanelAuto) return;
     clearLeftPanelOpenTimer();
     clearLeftPanelCloseTimer();
     leftPanelCloseTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(false);
       leftPanelCloseTimerRef.current = null;
     }, LEFT_PANEL_CLOSE_DELAY_MS);
-  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isTvMode]);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isLeftPanelAuto, isTvMode]);
+
+  useEffect(() => {
+    clearLeftPanelOpenTimer();
+    clearLeftPanelCloseTimer();
+
+    if (leftPanelMode === 'open') {
+      setIsLeftPanelOpen(true);
+      return;
+    }
+
+    if (leftPanelMode === 'closed') {
+      setIsLeftPanelOpen(false);
+      return;
+    }
+
+    // Auto mode starts open, then mouse controls open/close behavior.
+    setIsLeftPanelOpen(true);
+  }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, leftPanelMode]);
 
   useEffect(
     () => () => {
@@ -2565,7 +2586,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 lg:h-screen lg:overflow-hidden">
-      {!isTvMode && !isLeftPanelOpen && (
+      {!isTvMode && isLeftPanelAuto && !isLeftPanelOpen && (
         <div
           className="fixed left-0 top-0 z-40 hidden h-screen w-px bg-transparent lg:block"
           onMouseEnter={scheduleLeftPanelOpenFromEdge}
@@ -3345,7 +3366,7 @@ export default function App() {
           </section>
         </aside>
 
-        {!isTvMode && (
+        {!isTvMode && isLeftPanelAuto && (
           <button
             type="button"
             onClick={() => {
@@ -3380,13 +3401,35 @@ export default function App() {
               <p className="text-xs text-zinc-500">Cozunurluk: {videoResolution}</p>
               <p className="text-xs text-zinc-500">FPS: {videoFps}</p>
               <div className="ml-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsLeftPanelOpen((prev) => !prev)}
-                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500"
-                >
-                  Sol Panel: {isLeftPanelOpen ? 'Acik' : 'Kapali'}
-                </button>
+                <div className="flex items-center gap-1 rounded-md border border-zinc-700 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelMode('closed')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      leftPanelMode === 'closed' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    Sol Panel: Kapali
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelMode('open')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      leftPanelMode === 'open' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    Acik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelMode('auto')}
+                    className={`rounded px-2 py-1 text-xs ${
+                      leftPanelMode === 'auto' ? 'bg-cyan-500 text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    Otomatik
+                  </button>
+                </div>
                 <div className="flex items-center gap-1 rounded-md border border-zinc-700 p-1">
                   <button
                     type="button"
