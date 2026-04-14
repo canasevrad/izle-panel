@@ -432,16 +432,18 @@ function MultiViewPlayerTile({ slotIndex, sourceId, sources, onSourceChange, all
   }, [source, playbackMode]);
 
   return (
-    <article className={`space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2 ${compact ? 'flex h-full min-h-0 flex-col' : ''}`}>
-      <div className="flex items-center gap-2">
-        <p className="text-xs font-medium text-zinc-300">Pencere {slotIndex + 1}</p>
-        <span className="text-[11px] text-zinc-500">
+    <article className={`space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2 ${compact ? 'flex h-full min-h-0 flex-col p-1.5' : ''}`}>
+      <div className={`flex items-center gap-2 ${compact ? 'gap-1.5' : ''}`}>
+        <p className={`font-medium text-zinc-300 ${compact ? 'text-[11px]' : 'text-xs'}`}>Pencere {slotIndex + 1}</p>
+        <span className={`${compact ? 'text-[10px]' : 'text-[11px]'} text-zinc-500`}>
           {tileState === 'failed' ? 'Sorunlu' : tileState === 'ready' ? 'Hazir' : 'Yukleniyor'}
         </span>
         <select
           value={sourceId}
           onChange={(event) => onSourceChange(slotIndex, event.target.value)}
-          className="ml-auto min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+          className={`ml-auto min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 text-zinc-100 ${
+            compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs'
+          }`}
         >
           {sources.map((item) => (
             <option key={item.id} value={item.id}>
@@ -654,7 +656,7 @@ export default function App() {
     leftPanelCloseTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(false);
       leftPanelCloseTimerRef.current = null;
-    }, 220);
+    }, 700);
   }, [clearLeftPanelCloseTimer, isTvMode]);
 
   useEffect(() => () => clearLeftPanelCloseTimer(), [clearLeftPanelCloseTimer]);
@@ -2535,6 +2537,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 lg:h-screen lg:overflow-hidden">
+      {!isTvMode && !isLeftPanelOpen && (
+        <div
+          className="fixed left-0 top-0 z-40 hidden h-screen w-[2px] bg-transparent lg:block"
+          onMouseEnter={openLeftPanel}
+          aria-hidden="true"
+        />
+      )}
       <main
         className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:grid lg:h-full lg:gap-6 lg:space-y-0 lg:px-8 lg:py-6 lg:transition-[grid-template-columns] lg:duration-300"
         style={{
@@ -2543,11 +2552,6 @@ export default function App() {
       >
         <aside
           className={`relative ${isLeftPanelOpen ? '' : 'hidden lg:block'} lg:h-full lg:overflow-hidden`}
-          onMouseEnter={() => {
-            if (!isTvMode) {
-              openLeftPanel();
-            }
-          }}
           onMouseLeave={scheduleLeftPanelClose}
         >
           <button
@@ -2556,11 +2560,6 @@ export default function App() {
               if (isLeftPanelOpen) {
                 setIsLeftPanelOpen(false);
               } else {
-                openLeftPanel();
-              }
-            }}
-            onMouseEnter={() => {
-              if (!isTvMode) {
                 openLeftPanel();
               }
             }}
@@ -3486,7 +3485,11 @@ export default function App() {
 
              <div
                ref={playerContainerRef}
-               className={isMultiView ? 'w-full bg-black p-3 lg:flex-1 lg:min-h-0' : 'aspect-video w-full bg-black'}
+               className={
+                 isMultiView
+                   ? 'w-full bg-black p-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto'
+                   : 'aspect-video w-full bg-black'
+               }
              >
                {!canViewContent ? (
                  <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
@@ -3496,7 +3499,7 @@ export default function App() {
                  <div
                    className={`grid gap-3 ${
                      multiViewMode === 'quad'
-                       ? 'grid-cols-1 md:grid-cols-2 lg:h-full lg:grid-cols-2 lg:grid-rows-2'
+                        ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:auto-rows-[minmax(230px,1fr)]'
                        : 'grid-cols-1 md:grid-cols-2 lg:h-full'
                    }`}
                  >
