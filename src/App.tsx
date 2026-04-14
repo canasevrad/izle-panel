@@ -54,6 +54,8 @@ const AUTO_SWITCH_MIN_SOURCE_WAIT_MS = 3500;
 const AUTO_HEALTH_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const HEALTH_CHECK_TIMEOUT_MS = 7000;
 const HEALTH_CHECK_SPACING_MS = 450;
+const LEFT_PANEL_OPEN_DELAY_MS = 70;
+const LEFT_PANEL_CLOSE_DELAY_MS = 320;
 
 const supabase =
   SUPABASE_URL && SUPABASE_ANON_KEY
@@ -666,7 +668,7 @@ export default function App() {
     leftPanelOpenTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(true);
       leftPanelOpenTimerRef.current = null;
-    }, 180);
+    }, LEFT_PANEL_OPEN_DELAY_MS);
   }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isLeftPanelOpen, isTvMode]);
 
   const scheduleLeftPanelClose = useCallback(() => {
@@ -676,7 +678,7 @@ export default function App() {
     leftPanelCloseTimerRef.current = window.setTimeout(() => {
       setIsLeftPanelOpen(false);
       leftPanelCloseTimerRef.current = null;
-    }, 1000);
+    }, LEFT_PANEL_CLOSE_DELAY_MS);
   }, [clearLeftPanelCloseTimer, clearLeftPanelOpenTimer, isTvMode]);
 
   useEffect(
