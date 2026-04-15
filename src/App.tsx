@@ -335,7 +335,7 @@ function sanitizeSources(input: unknown) {
 
       return {
         id: source.id && source.id.trim() ? source.id : crypto.randomUUID(),
-          name: stripHiddenPrefix(stripMusicPrefix(stripLegacyFilmPrefix(rawName))),
+        name: stripHiddenPrefix(stripMusicPrefix(stripLegacyFilmPrefix(rawName))),
         url: normalizedUrl,
         category: displayCategory,
         enabled: source.enabled ?? true,
@@ -2610,759 +2610,759 @@ export default function App() {
               isLeftPanelOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none -translate-x-3 opacity-0'
             }`}
           >
-          <div>
-            <p className="text-sm uppercase tracking-[0.22em] text-cyan-300">Yayin Merkezi</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Kaynak Yonetimi ve Hizli Gecis</h1>
-            <p className="mt-2 text-sm text-zinc-400">
-              {isViewerOnlyMode
-                ? 'Kategori secip kanallari ac, kumandadan hizli gecis yap.'
-                : 'Tum kaynaklarini tek panelden yonet. Bir kaynak acilmazsa tek tikla veya otomatik olarak digerine gec.'}
-            </p>
-            <p className="mt-2 text-xs text-zinc-500">
-              Depolama: {storageMode === 'cloud' ? 'Bulut (tum cihazlardan ortak liste)' : 'Lokal (sadece bu cihaz)'}
-            </p>
-          </div>
-
-          {!isViewerOnlyMode ? (
-            <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
-              {!hasCloudConfigured && (
-                <p className="text-xs text-amber-300">
-                  Supabase baglantisi kapali. VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY olmadan giris acilmaz.
-                </p>
-              )}
-              {hasCloudConfigured && !ADMIN_EMAIL && (
-                <p className="text-xs text-amber-300">VITE_ADMIN_EMAIL ayari yok. Env degiskenini tanimlamalisin.</p>
-              )}
-
-              <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAdminLoginPanel((prev) => !prev)}
-                  className="flex w-full items-center justify-between text-left text-xs font-medium text-cyan-200"
-                >
-                  <span>Yonetici Girisi</span>
-                  <span>{showAdminLoginPanel ? 'Kapat' : 'Ac'}</span>
-                </button>
-
-                {showAdminLoginPanel && (
-                  <div className="mt-2 space-y-2">
-                    {storageMode === 'cloud' && authUserEmail && isAdmin ? (
-                      <div className="space-y-2">
-                        <p className="text-xs text-zinc-300">Admin oturumu acik: {authUserEmail}</p>
-                        <button
-                          type="button"
-                          onClick={() => void handleLogout()}
-                          className="rounded-md border border-cyan-500/50 px-3 py-2 text-xs text-cyan-100 hover:border-cyan-300"
-                        >
-                          Cikis Yap
-                        </button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleAdminLogin} className="space-y-2">
-                        <input
-                          value={adminAuthEmail}
-                          onChange={(event) => setAdminAuthEmail(event.target.value)}
-                          placeholder="Yonetici e-posta"
-                          disabled={!hasCloudConfigured}
-                          className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
-                        />
-                        <input
-                          type={showAdminPassword ? 'text' : 'password'}
-                          value={adminAuthPassword}
-                          onChange={(event) => setAdminAuthPassword(event.target.value)}
-                          placeholder="Sifre"
-                          disabled={!hasCloudConfigured}
-                          className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
-                        />
-                        <label className="flex items-center gap-2 text-xs text-cyan-200/80">
-                          <input
-                            type="checkbox"
-                            checked={showAdminPassword}
-                            onChange={(event) => setShowAdminPassword(event.target.checked)}
-                            className="accent-cyan-400"
-                          />
-                          Sifreyi goster
-                        </label>
-                        <button
-                          type="submit"
-                          disabled={isAdminAuthSubmitting || !ADMIN_EMAIL || !hasCloudConfigured}
-                          className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {isAdminAuthSubmitting ? 'Giris yapiliyor...' : 'Admin Girisi Yap'}
-                        </button>
-                      </form>
-                    )}
-                    {adminAuthMessage && <p className="text-xs text-cyan-100/90">{adminAuthMessage}</p>}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2">
-                <button
-                  type="button"
-                  onClick={() => setShowViewerLoginPanel((prev) => !prev)}
-                  className="flex w-full items-center justify-between text-left text-xs font-medium text-amber-200"
-                >
-                  <span>Izleyici Girisi</span>
-                  <span>{showViewerLoginPanel ? 'Kapat' : 'Ac'}</span>
-                </button>
-
-                {showViewerLoginPanel && (
-                  <div className="mt-2 space-y-2">
-                    {storageMode === 'cloud' && authUserEmail && !isAdmin ? (
-                      <div className="space-y-2">
-                        <p className="text-xs text-zinc-300">Izleyici oturumu acik: {authUserEmail}</p>
-                        <button
-                          type="button"
-                          onClick={() => void handleLogout()}
-                          className="rounded-md border border-amber-500/50 px-3 py-2 text-xs text-amber-100 hover:border-amber-300"
-                        >
-                          Cikis Yap
-                        </button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleViewerLogin} className="space-y-2">
-                        <input
-                          value={viewerAuthEmail}
-                          onChange={(event) => setViewerAuthEmail(event.target.value)}
-                          placeholder="Izleyici e-posta"
-                          disabled={!hasCloudConfigured}
-                          className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
-                        />
-                        <input
-                          type={showViewerPassword ? 'text' : 'password'}
-                          value={viewerAuthPassword}
-                          onChange={(event) => setViewerAuthPassword(event.target.value)}
-                          placeholder="Sifre"
-                          disabled={!hasCloudConfigured}
-                          className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
-                        />
-                        <label className="flex items-center gap-2 text-xs text-amber-200/80">
-                          <input
-                            type="checkbox"
-                            checked={showViewerPassword}
-                            onChange={(event) => setShowViewerPassword(event.target.checked)}
-                            className="accent-amber-400"
-                          />
-                          Sifreyi goster
-                        </label>
-                        <button
-                          type="submit"
-                          disabled={isViewerAuthSubmitting || !hasCloudConfigured}
-                          className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {isViewerAuthSubmitting ? 'Giris yapiliyor...' : 'Izleyici Girisi Yap'}
-                        </button>
-                      </form>
-                    )}
-                    {viewerAuthMessage && <p className="text-xs text-amber-100/90">{viewerAuthMessage}</p>}
-                    {storageMode === 'cloud' && authUserEmail && (
-                      <p className={`text-xs ${isAdmin ? 'text-emerald-300' : 'text-amber-300'}`}>
-                        Aktif hesap: {authUserEmail} ({isAdmin ? 'Admin' : 'Izleyici'})
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-100">
-              <span>Izleyici oturumu: {authUserEmail}</span>
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                className="rounded border border-amber-500/60 px-2 py-1 hover:border-amber-300"
-              >
-                Cikis Yap
-              </button>
-            </div>
-          )}
-
-          {isAdmin && storageMode === 'cloud' && (
-            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <h2 className="text-sm font-medium text-zinc-200">Izleme Izinleri</h2>
-              <p className="text-xs text-zinc-400">Kullanici olusturup izleme yetkisi verebilir, mevcut izinleri kaldirabilirsin.</p>
-
-              <form onSubmit={createViewerAccount} className="space-y-2 rounded-md border border-zinc-800 bg-zinc-950/50 p-3">
-                <p className="text-xs text-zinc-300">Yeni izleyici olustur</p>
-                <input
-                  value={viewerEmailInput}
-                  onChange={(event) => setViewerEmailInput(event.target.value)}
-                  placeholder="izleyici@ornek.com"
-                  disabled={isSavingViewer || isCreatingViewerUser}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
-                />
-                <input
-                  type={showNewViewerPassword ? 'text' : 'password'}
-                  value={viewerPasswordInput}
-                  onChange={(event) => setViewerPasswordInput(event.target.value)}
-                  placeholder="Sifre (min 6 karakter)"
-                  disabled={isSavingViewer || isCreatingViewerUser}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
-                />
-                <label className="flex items-center gap-2 text-xs text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={showNewViewerPassword}
-                    onChange={(event) => setShowNewViewerPassword(event.target.checked)}
-                    className="accent-cyan-400"
-                  />
-                  Sifreyi goster
-                </label>
-                <button
-                  type="submit"
-                  disabled={isSavingViewer || isCreatingViewerUser}
-                  className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isCreatingViewerUser ? 'Kullanici aciliyor...' : 'Kullanici Ac ve Izin Ver'}
-                </button>
-              </form>
-
-              <form onSubmit={addViewerEmail} className="space-y-2">
-                <p className="text-xs text-zinc-300">Mevcut hesaba sadece izleme izni ver</p>
-                <input
-                  value={grantViewerEmailInput}
-                  onChange={(event) => setGrantViewerEmailInput(event.target.value)}
-                  placeholder="izleyici@ornek.com"
-                  disabled={isSavingViewer || isCreatingViewerUser}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
-                />
-                <button
-                  type="submit"
-                  disabled={isSavingViewer || isCreatingViewerUser}
-                  className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isSavingViewer ? 'Kaydediliyor...' : 'Sadece Izin Ekle'}
-                </button>
-              </form>
-
-              <div className="space-y-2 pr-1">
-                {isLoadingViewers && <p className="text-xs text-zinc-400">Izin listesi yukleniyor...</p>}
-                {!isLoadingViewers && viewerEmails.length === 0 && (
-                  <p className="text-xs text-zinc-400">Henuz izinli izleyici yok. Sadece admin erisebilir.</p>
-                )}
-                {viewerEmails.map((email) => (
-                  <div key={email} className="flex items-center justify-between rounded-md border border-zinc-800 px-2 py-1 text-xs">
-                    <span className="truncate text-zinc-300">{email}</span>
-                    {email === ADMIN_EMAIL ? (
-                      <span className="text-emerald-300">Admin</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void removeViewerEmail(email)}
-                        className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:border-red-400 hover:text-red-300"
-                      >
-                        Kaldir
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isAdmin && storageMode === 'cloud' && (
-            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-sm font-medium text-zinc-200">Giris Gecmisi</h2>
-                  <p className="text-xs text-zinc-400">Kim ne zaman giris yapti veya cikis yapti goruntuleyebilirsin.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void loadAccessLogs()}
-                  disabled={isLoadingAccessLogs}
-                  className="rounded-md border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Yenile
-                </button>
-              </div>
-
-              {isLoadingAccessLogs && <p className="text-xs text-zinc-400">Giris kayitlari yukleniyor...</p>}
-              {!isLoadingAccessLogs && accessLogsError && <p className="text-xs text-amber-300">{accessLogsError}</p>}
-              {!isLoadingAccessLogs && !accessLogsError && accessLogs.length === 0 && (
-                <p className="text-xs text-zinc-400">Henuz giris veya cikis kaydi yok.</p>
-              )}
-
-              {!accessLogsError && accessLogs.length > 0 && (
-                <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-                  {accessLogs.map((record) => (
-                    <div key={record.id} className="rounded-md border border-zinc-800 bg-zinc-950/40 px-2 py-1.5 text-xs">
-                      <p className="truncate text-zinc-200">{record.email}</p>
-                      <p className="text-[11px] text-zinc-500">
-                        {record.event_type === 'login' ? 'Giris' : 'Cikis'} - {record.role === 'admin' ? 'Admin' : 'Izleyici'} -{' '}
-                        {formatDateTime(record.created_at)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {isAdmin && (
-            <form onSubmit={handleAddSource} className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <h2 className="text-sm font-medium text-zinc-200">Yeni Kaynak Ekle</h2>
-              <input
-                value={newName}
-                onChange={(event) => {
-                  setNewName(event.target.value);
-                  if (addSourceMessage) setAddSourceMessage('');
-                }}
-                placeholder="Kaynak adi"
-                disabled={isSaving || isLoadingSources}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
-              />
-              <input
-                value={newUrl}
-                onChange={(event) => {
-                  setNewUrl(event.target.value);
-                  if (addSourceMessage) setAddSourceMessage('');
-                }}
-                placeholder="https://..."
-                disabled={isSaving || isLoadingSources}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
-              />
-              <p className="text-[11px] text-zinc-500">
-                Not: .m3u8 ve .ts medya linkleri dahili oynaticida acilir. HTTPS sitede http:// medya linkleri engellenebilir.
+            <div>
+              <p className="text-sm uppercase tracking-[0.22em] text-cyan-300">Yayin Merkezi</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">Kaynak Yonetimi ve Hizli Gecis</h1>
+              <p className="mt-2 text-sm text-zinc-400">
+                {isViewerOnlyMode
+                  ? 'Kategori secip kanallari ac, kumandadan hizli gecis yap.'
+                  : 'Tum kaynaklarini tek panelden yonet. Bir kaynak acilmazsa tek tikla veya otomatik olarak digerine gec.'}
               </p>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-zinc-400">Tur:</label>
-                <select
-                  value={newCategory}
-                  onChange={(event) => {
-                    setNewCategory(event.target.value as SourceCategory);
-                    if (addSourceMessage) setAddSourceMessage('');
-                  }}
-                  disabled={isSaving || isLoadingSources}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  <option value="sports">Mac Yayinlari</option>
-                  <option value="film">Film</option>
-                  <option value="tv">TV</option>
-                  <option value="music">Muzik</option>
-                  <option value="hidden">Gizli (Sadece Admin)</option>
-                </select>
+              <p className="mt-2 text-xs text-zinc-500">
+                Depolama: {storageMode === 'cloud' ? 'Bulut (tum cihazlardan ortak liste)' : 'Lokal (sadece bu cihaz)'}
+              </p>
+            </div>
+
+            {!isViewerOnlyMode ? (
+              <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3">
+                {!hasCloudConfigured && (
+                  <p className="text-xs text-amber-300">
+                    Supabase baglantisi kapali. VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY olmadan giris acilmaz.
+                  </p>
+                )}
+                {hasCloudConfigured && !ADMIN_EMAIL && (
+                  <p className="text-xs text-amber-300">VITE_ADMIN_EMAIL ayari yok. Env degiskenini tanimlamalisin.</p>
+                )}
+
+                <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/5 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminLoginPanel((prev) => !prev)}
+                    className="flex w-full items-center justify-between text-left text-xs font-medium text-cyan-200"
+                  >
+                    <span>Yonetici Girisi</span>
+                    <span>{showAdminLoginPanel ? 'Kapat' : 'Ac'}</span>
+                  </button>
+
+                  {showAdminLoginPanel && (
+                    <div className="mt-2 space-y-2">
+                      {storageMode === 'cloud' && authUserEmail && isAdmin ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-zinc-300">Admin oturumu acik: {authUserEmail}</p>
+                          <button
+                            type="button"
+                            onClick={() => void handleLogout()}
+                            className="rounded-md border border-cyan-500/50 px-3 py-2 text-xs text-cyan-100 hover:border-cyan-300"
+                          >
+                            Cikis Yap
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleAdminLogin} className="space-y-2">
+                          <input
+                            value={adminAuthEmail}
+                            onChange={(event) => setAdminAuthEmail(event.target.value)}
+                            placeholder="Yonetici e-posta"
+                            disabled={!hasCloudConfigured}
+                            className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
+                          />
+                          <input
+                            type={showAdminPassword ? 'text' : 'password'}
+                            value={adminAuthPassword}
+                            onChange={(event) => setAdminAuthPassword(event.target.value)}
+                            placeholder="Sifre"
+                            disabled={!hasCloudConfigured}
+                            className="w-full rounded-md border border-cyan-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-300 disabled:opacity-60"
+                          />
+                          <label className="flex items-center gap-2 text-xs text-cyan-200/80">
+                            <input
+                              type="checkbox"
+                              checked={showAdminPassword}
+                              onChange={(event) => setShowAdminPassword(event.target.checked)}
+                              className="accent-cyan-400"
+                            />
+                            Sifreyi goster
+                          </label>
+                          <button
+                            type="submit"
+                            disabled={isAdminAuthSubmitting || !ADMIN_EMAIL || !hasCloudConfigured}
+                            className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {isAdminAuthSubmitting ? 'Giris yapiliyor...' : 'Admin Girisi Yap'}
+                          </button>
+                        </form>
+                      )}
+                      {adminAuthMessage && <p className="text-xs text-cyan-100/90">{adminAuthMessage}</p>}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowViewerLoginPanel((prev) => !prev)}
+                    className="flex w-full items-center justify-between text-left text-xs font-medium text-amber-200"
+                  >
+                    <span>Izleyici Girisi</span>
+                    <span>{showViewerLoginPanel ? 'Kapat' : 'Ac'}</span>
+                  </button>
+
+                  {showViewerLoginPanel && (
+                    <div className="mt-2 space-y-2">
+                      {storageMode === 'cloud' && authUserEmail && !isAdmin ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-zinc-300">Izleyici oturumu acik: {authUserEmail}</p>
+                          <button
+                            type="button"
+                            onClick={() => void handleLogout()}
+                            className="rounded-md border border-amber-500/50 px-3 py-2 text-xs text-amber-100 hover:border-amber-300"
+                          >
+                            Cikis Yap
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleViewerLogin} className="space-y-2">
+                          <input
+                            value={viewerAuthEmail}
+                            onChange={(event) => setViewerAuthEmail(event.target.value)}
+                            placeholder="Izleyici e-posta"
+                            disabled={!hasCloudConfigured}
+                            className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
+                          />
+                          <input
+                            type={showViewerPassword ? 'text' : 'password'}
+                            value={viewerAuthPassword}
+                            onChange={(event) => setViewerAuthPassword(event.target.value)}
+                            placeholder="Sifre"
+                            disabled={!hasCloudConfigured}
+                            className="w-full rounded-md border border-amber-500/40 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:opacity-60"
+                          />
+                          <label className="flex items-center gap-2 text-xs text-amber-200/80">
+                            <input
+                              type="checkbox"
+                              checked={showViewerPassword}
+                              onChange={(event) => setShowViewerPassword(event.target.checked)}
+                              className="accent-amber-400"
+                            />
+                            Sifreyi goster
+                          </label>
+                          <button
+                            type="submit"
+                            disabled={isViewerAuthSubmitting || !hasCloudConfigured}
+                            className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {isViewerAuthSubmitting ? 'Giris yapiliyor...' : 'Izleyici Girisi Yap'}
+                          </button>
+                        </form>
+                      )}
+                      {viewerAuthMessage && <p className="text-xs text-amber-100/90">{viewerAuthMessage}</p>}
+                      {storageMode === 'cloud' && authUserEmail && (
+                        <p className={`text-xs ${isAdmin ? 'text-emerald-300' : 'text-amber-300'}`}>
+                          Aktif hesap: {authUserEmail} ({isAdmin ? 'Admin' : 'Izleyici'})
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-100">
+                <span>Izleyici oturumu: {authUserEmail}</span>
                 <button
-                  type="submit"
-                  disabled={isSaving || isLoadingSources}
-                  className="ml-auto rounded-md bg-cyan-500 px-3 py-2 text-sm font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="rounded border border-amber-500/60 px-2 py-1 hover:border-amber-300"
                 >
-                  {isSaving ? 'Kaydediliyor...' : 'Ekle'}
+                  Cikis Yap
                 </button>
               </div>
-              {addSourceMessage && (
-                <p
-                  className={`text-xs ${
-                    addSourceMessageType === 'error'
-                      ? 'text-rose-300'
-                      : addSourceMessageType === 'success'
-                        ? 'text-emerald-300'
-                        : 'text-zinc-400'
-                  }`}
-                >
-                  {addSourceMessage}
-                </p>
-              )}
-              {!canViewContent && storageMode === 'cloud' && (
-                <p className="text-xs text-zinc-500">Yayin listesi icin once izinli e-postayla giris yapmalisin.</p>
-              )}
-            </form>
-          )}
+            )}
 
-          {isAdmin && (
-            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <button
-                type="button"
-                onClick={() => setShowIptvTools((prev) => !prev)}
-                className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
-              >
-                <span>IPTV / M3U Donusturucu</span>
-                <span className="text-xs text-zinc-400">{showIptvTools ? 'Kapat' : 'Ac'}</span>
-              </button>
+            {isAdmin && storageMode === 'cloud' && (
+              <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+                <h2 className="text-sm font-medium text-zinc-200">Izleme Izinleri</h2>
+                <p className="text-xs text-zinc-400">Kullanici olusturup izleme yetkisi verebilir, mevcut izinleri kaldirabilirsin.</p>
 
-              {showIptvTools && (
-                <div className="space-y-3">
-                <p className="text-xs text-zinc-400">M3U linki veya dosyasi yukleyip TXT (Kanal Adi | URL) olusturabilirsin.</p>
-
-                <form onSubmit={importM3uFromUrl} className="space-y-2">
+                <form onSubmit={createViewerAccount} className="space-y-2 rounded-md border border-zinc-800 bg-zinc-950/50 p-3">
+                  <p className="text-xs text-zinc-300">Yeni izleyici olustur</p>
                   <input
-                    value={m3uUrl}
-                    onChange={(event) => setM3uUrl(event.target.value)}
-                    placeholder="https://ornek.com/list.m3u"
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources}
+                    value={viewerEmailInput}
+                    onChange={(event) => setViewerEmailInput(event.target.value)}
+                    placeholder="izleyici@ornek.com"
+                    disabled={isSavingViewer || isCreatingViewerUser}
+                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                  />
+                  <input
+                    type={showNewViewerPassword ? 'text' : 'password'}
+                    value={viewerPasswordInput}
+                    onChange={(event) => setViewerPasswordInput(event.target.value)}
+                    placeholder="Sifre (min 6 karakter)"
+                    disabled={isSavingViewer || isCreatingViewerUser}
+                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                  />
+                  <label className="flex items-center gap-2 text-xs text-zinc-400">
+                    <input
+                      type="checkbox"
+                      checked={showNewViewerPassword}
+                      onChange={(event) => setShowNewViewerPassword(event.target.checked)}
+                      className="accent-cyan-400"
+                    />
+                    Sifreyi goster
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={isSavingViewer || isCreatingViewerUser}
+                    className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isCreatingViewerUser ? 'Kullanici aciliyor...' : 'Kullanici Ac ve Izin Ver'}
+                  </button>
+                </form>
+
+                <form onSubmit={addViewerEmail} className="space-y-2">
+                  <p className="text-xs text-zinc-300">Mevcut hesaba sadece izleme izni ver</p>
+                  <input
+                    value={grantViewerEmailInput}
+                    onChange={(event) => setGrantViewerEmailInput(event.target.value)}
+                    placeholder="izleyici@ornek.com"
+                    disabled={isSavingViewer || isCreatingViewerUser}
                     className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
                   />
                   <button
                     type="submit"
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources}
-                    className="rounded-md border border-cyan-500 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isSavingViewer || isCreatingViewerUser}
+                    className="rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isImportingM3u ? 'URLden cekiliyor...' : 'M3U Linkini Yukle'}
+                    {isSavingViewer ? 'Kaydediliyor...' : 'Sadece Izin Ekle'}
                   </button>
                 </form>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] text-zinc-400">M3U dosyasi yukle (.m3u, .m3u8, .txt)</label>
-                  <input
-                    type="file"
-                    accept=".m3u,.m3u8,.txt,text/plain,application/x-mpegURL,audio/x-mpegurl"
-                    onChange={handleM3uFileUpload}
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs file:mr-3 file:rounded file:border-0 file:bg-cyan-500 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-950 disabled:opacity-60"
-                  />
-                  {m3uFileName && <p className="text-[11px] text-zinc-500">Yuklenen kaynak: {m3uFileName}</p>}
+                <div className="space-y-2 pr-1">
+                  {isLoadingViewers && <p className="text-xs text-zinc-400">Izin listesi yukleniyor...</p>}
+                  {!isLoadingViewers && viewerEmails.length === 0 && (
+                    <p className="text-xs text-zinc-400">Henuz izinli izleyici yok. Sadece admin erisebilir.</p>
+                  )}
+                  {viewerEmails.map((email) => (
+                    <div key={email} className="flex items-center justify-between rounded-md border border-zinc-800 px-2 py-1 text-xs">
+                      <span className="truncate text-zinc-300">{email}</span>
+                      {email === ADMIN_EMAIL ? (
+                        <span className="text-emerald-300">Admin</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void removeViewerEmail(email)}
+                          className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:border-red-400 hover:text-red-300"
+                        >
+                          Kaldir
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isAdmin && storageMode === 'cloud' && (
+              <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-medium text-zinc-200">Giris Gecmisi</h2>
+                    <p className="text-xs text-zinc-400">Kim ne zaman giris yapti veya cikis yapti goruntuleyebilirsin.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void loadAccessLogs()}
+                    disabled={isLoadingAccessLogs}
+                    className="rounded-md border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 transition hover:border-cyan-400 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Yenile
+                  </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={prepareTxtFromLoadedM3u}
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources}
-                    className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    TXT Goruntule
-                  </button>
-                  <button
-                    type="button"
-                    onClick={downloadPreparedTxt}
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources || !txtPreviewContent.trim()}
-                    className="rounded-md border border-amber-400 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    TXT Indir
-                  </button>
-                  <button
-                    type="button"
-                    onClick={importM3uFromText}
-                    disabled={!isAdmin || isImportingM3u || isLoadingSources || !m3uText.trim()}
-                    className="rounded-md border border-cyan-500 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Kaynaklara Ekle
-                  </button>
-                </div>
-
-                {parsedM3uChannels.length > 0 && (
-                  <p className="text-xs text-zinc-400">Algilanan kanal sayisi: {parsedM3uChannels.length}</p>
+                {isLoadingAccessLogs && <p className="text-xs text-zinc-400">Giris kayitlari yukleniyor...</p>}
+                {!isLoadingAccessLogs && accessLogsError && <p className="text-xs text-amber-300">{accessLogsError}</p>}
+                {!isLoadingAccessLogs && !accessLogsError && accessLogs.length === 0 && (
+                  <p className="text-xs text-zinc-400">Henuz giris veya cikis kaydi yok.</p>
                 )}
 
-                {showTxtPreview && txtPreviewContent && (
-                  <textarea
-                    readOnly
-                    value={txtPreviewContent}
-                    rows={8}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 outline-none"
-                  />
+                {!accessLogsError && accessLogs.length > 0 && (
+                  <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+                    {accessLogs.map((record) => (
+                      <div key={record.id} className="rounded-md border border-zinc-800 bg-zinc-950/40 px-2 py-1.5 text-xs">
+                        <p className="truncate text-zinc-200">{record.email}</p>
+                        <p className="text-[11px] text-zinc-500">
+                          {record.event_type === 'login' ? 'Giris' : 'Cikis'} - {record.role === 'admin' ? 'Admin' : 'Izleyici'} -{' '}
+                          {formatDateTime(record.created_at)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
+              </div>
+            )}
 
+            {isAdmin && (
+              <form onSubmit={handleAddSource} className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+                <h2 className="text-sm font-medium text-zinc-200">Yeni Kaynak Ekle</h2>
+                <input
+                  value={newName}
+                  onChange={(event) => {
+                    setNewName(event.target.value);
+                    if (addSourceMessage) setAddSourceMessage('');
+                  }}
+                  placeholder="Kaynak adi"
+                  disabled={isSaving || isLoadingSources}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                />
+                <input
+                  value={newUrl}
+                  onChange={(event) => {
+                    setNewUrl(event.target.value);
+                    if (addSourceMessage) setAddSourceMessage('');
+                  }}
+                  placeholder="https://..."
+                  disabled={isSaving || isLoadingSources}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                />
                 <p className="text-[11px] text-zinc-500">
-                  Not: URLden cekme CORS nedeniyle engellenirse dosya yukleme en garanti yontemdir.
+                  Not: .m3u8 ve .ts medya linkleri dahili oynaticida acilir. HTTPS sitede http:// medya linkleri engellenebilir.
                 </p>
-                {iptvMessage && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-zinc-400">Tur:</label>
+                  <select
+                    value={newCategory}
+                    onChange={(event) => {
+                      setNewCategory(event.target.value as SourceCategory);
+                      if (addSourceMessage) setAddSourceMessage('');
+                    }}
+                    disabled={isSaving || isLoadingSources}
+                    className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-60"
+                  >
+                    <option value="sports">Mac Yayinlari</option>
+                    <option value="film">Film</option>
+                    <option value="tv">TV</option>
+                    <option value="music">Muzik</option>
+                    <option value="hidden">Gizli (Sadece Admin)</option>
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={isSaving || isLoadingSources}
+                    className="ml-auto rounded-md bg-cyan-500 px-3 py-2 text-sm font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSaving ? 'Kaydediliyor...' : 'Ekle'}
+                  </button>
+                </div>
+                {addSourceMessage && (
                   <p
                     className={`text-xs ${
-                      iptvMessageType === 'error'
-                        ? 'text-red-300'
-                        : iptvMessageType === 'success'
-                          ? 'text-emerald-300'
-                          : 'text-zinc-300'
+                      addSourceMessageType === 'error'
+                        ? 'text-rose-300'
+                        : addSourceMessageType === 'success'
+                        ? 'text-emerald-300'
+                        : 'text-zinc-400'
                     }`}
                   >
-                    {iptvMessage}
+                    {addSourceMessage}
                   </p>
                 )}
-                </div>
+                {!canViewContent && storageMode === 'cloud' && (
+                  <p className="text-xs text-zinc-500">Yayin listesi icin once izinli e-postayla giris yapmalisin.</p>
+                )}
+              </form>
+            )}
+
+            {isAdmin && (
+              <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowIptvTools((prev) => !prev)}
+                  className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
+                >
+                  <span>IPTV / M3U Donusturucu</span>
+                  <span className="text-xs text-zinc-400">{showIptvTools ? 'Kapat' : 'Ac'}</span>
+                </button>
+
+                {showIptvTools && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-400">M3U linki veya dosyasi yukleyip TXT (Kanal Adi | URL) olusturabilirsin.</p>
+
+                    <form onSubmit={importM3uFromUrl} className="space-y-2">
+                      <input
+                        value={m3uUrl}
+                        onChange={(event) => setM3uUrl(event.target.value)}
+                        placeholder="https://ornek.com/list.m3u"
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources}
+                        className="rounded-md border border-cyan-500 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isImportingM3u ? 'URLden cekiliyor...' : 'M3U Linkini Yukle'}
+                      </button>
+                    </form>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-zinc-400">M3U dosyasi yukle (.m3u, .m3u8, .txt)</label>
+                      <input
+                        type="file"
+                        accept=".m3u,.m3u8,.txt,text/plain,application/x-mpegURL,audio/x-mpegurl"
+                        onChange={handleM3uFileUpload}
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs file:mr-3 file:rounded file:border-0 file:bg-cyan-500 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-950 disabled:opacity-60"
+                      />
+                      {m3uFileName && <p className="text-[11px] text-zinc-500">Yuklenen kaynak: {m3uFileName}</p>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={prepareTxtFromLoadedM3u}
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources}
+                        className="rounded-md bg-amber-400 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        TXT Goruntule
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadPreparedTxt}
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources || !txtPreviewContent.trim()}
+                        className="rounded-md border border-amber-400 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        TXT Indir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={importM3uFromText}
+                        disabled={!isAdmin || isImportingM3u || isLoadingSources || !m3uText.trim()}
+                        className="rounded-md border border-cyan-500 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Kaynaklara Ekle
+                      </button>
+                    </div>
+
+                    {parsedM3uChannels.length > 0 && (
+                      <p className="text-xs text-zinc-400">Algilanan kanal sayisi: {parsedM3uChannels.length}</p>
+                    )}
+
+                    {showTxtPreview && txtPreviewContent && (
+                      <textarea
+                        readOnly
+                        value={txtPreviewContent}
+                        rows={8}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 outline-none"
+                      />
+                    )}
+
+                    <p className="text-[11px] text-zinc-500">
+                      Not: URLden cekme CORS nedeniyle engellenirse dosya yukleme en garanti yontemdir.
+                    </p>
+                    {iptvMessage && (
+                      <p
+                        className={`text-xs ${
+                          iptvMessageType === 'error'
+                            ? 'text-red-300'
+                            : iptvMessageType === 'success'
+                            ? 'text-emerald-300'
+                            : 'text-zinc-300'
+                        }`}
+                      >
+                        {iptvMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+              <button
+                type="button"
+                onClick={() => setShowSourceList((prev) => !prev)}
+                className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
+              >
+                <span>Kaynak Listesi ({accessibleSources.length})</span>
+                <span className="text-xs text-zinc-400">{showSourceList ? 'Kapat' : 'Ac'}</span>
+              </button>
+
+              {showSourceList && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-zinc-500">
+                      {isAdmin
+                        ? 'Kaynak sayisinda limit yok. Istedigin kadar kaynak ekleyebilir, surukle-birak ile sirayi degistirebilirsin.'
+                        : 'Kategori secip kanali ac. Izleyici modunda sadece izleme kontrolleri gosterilir.'}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsTvMode((prev) => {
+                            const next = !prev;
+                            if (next) {
+                              setShowSourceList(true);
+                              setTvFocusArea('categories');
+                            }
+                            return next;
+                          });
+                        }}
+                        className={`rounded-md border px-2 py-1 text-xs transition ${
+                          isTvMode
+                            ? 'border-emerald-400 text-emerald-300 hover:border-emerald-300'
+                            : 'border-zinc-700 text-zinc-200 hover:border-zinc-500'
+                        }`}
+                      >
+                        TV Modu: {isTvMode ? 'Acik' : 'Kapali'}
+                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => void applyAlphabeticalSort()}
+                          className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:border-zinc-500"
+                        >
+                          A-Z Sirala (Kalici)
+                        </button>
+                      )}
+                      {isTvMode ? (
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
+                          <span>Kategori:</span>
+                          {tvCategoryOptions.map((option, index) => {
+                            const isSelected = selectedCategoryFilter === option.value;
+                            const isTvFocused = tvFocusArea === 'categories' && tvCategoryIndex === index;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCategoryFilter(option.value);
+                                  setTvCategoryIndex(index);
+                                  setTvFocusArea('categories');
+                                }}
+                                className={`rounded-md border px-2 py-1 text-xs transition ${
+                                  isSelected
+                                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200'
+                                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                                } ${isTvFocused ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-900' : ''}`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-zinc-300">
+                          <span>Kategori:</span>
+                          <select
+                            value={selectedCategoryFilter}
+                            onChange={(event) => setSelectedCategoryFilter(event.target.value as 'all' | SourceCategory)}
+                            className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs"
+                          >
+                            <option value="all">Tum kategoriler</option>
+                            <option value="sports">Mac Yayinlari</option>
+                            {isAdmin && <option value="film">Film</option>}
+                            <option value="tv">TV</option>
+                            {isAdmin && <option value="music">Muzik</option>}
+                            {isAdmin && <option value="hidden">Gizli</option>}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAutoHealthCheckEnabled((prev) => !prev)}
+                          className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:border-zinc-500"
+                        >
+                          Oto Saglik Taramasi: {autoHealthCheckEnabled ? 'Acik' : 'Kapali'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void runSourceHealthScan('manual')}
+                          disabled={isHealthScanRunning}
+                          className="rounded-md border border-cyan-600/60 px-2 py-1 text-xs text-cyan-200 transition hover:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isHealthScanRunning ? 'Taraniyor...' : 'Simdi Tara'}
+                        </button>
+                        <span className="text-xs text-zinc-400">Durum: {healthSummary.ok} calisiyor, {healthSummary.failed} sorunlu</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        Oto tarama acikken sistem kaynaklari arka planda kontrol eder. Aktif oynatilan kaynak taranmaz.
+                      </p>
+                      {healthScanMessage && <p className="mt-1 text-xs text-emerald-300">{healthScanMessage}</p>}
+                    </div>
+                  )}
+                  {isTvMode && (
+                    <p className="text-xs text-emerald-300">
+                      TV modu aktif: Sol ile sol panele, Sag ile yayin paneline gec. CH+/CH- (veya PageUp/PageDown)
+                      ile kanal degistir. Yukari/Asagi ile secimi degistir, Enter ile uygula.
+                    </p>
+                  )}
+                  {isAdmin && selectedCategoryFilter !== 'all' && (
+                    <p className="text-xs text-amber-300">Siralama yapmak icin kategori filtresini "Tum kategoriler" yap.</p>
+                  )}
+                  {isAdmin && storageMode === 'cloud' && !supportsCloudOrdering && (
+                    <p className="text-xs text-amber-300">
+                      Tum izleyicilerde ayni siralama icin stream_sources tablosuna sort_order kolonu ekleyin.
+                    </p>
+                  )}
+
+                  <div className="space-y-2 pr-1">
+                    {isLoadingSources && <p className="text-sm text-zinc-400">Kaynaklar yukleniyor...</p>}
+                    {!canViewContent && !isLoadingSources && (
+                      <p className="text-sm text-zinc-400">Kaynaklari listelemek icin once giris yapmalisin.</p>
+                    )}
+
+                    {canViewContent &&
+                      visibleSources.map((source, index) => {
+                        const isActive = source.id === activeSourceId;
+                        const isDragging = draggingSourceId === source.id;
+                        const isDragOver = dragOverSourceId === source.id;
+                        const isFocused = focusedSourceId === source.id;
+                        const sourceOrder = index + 1;
+                        return (
+                          <article
+                            key={source.id}
+                            ref={(node) => {
+                              sourceItemRefs.current[source.id] = node;
+                            }}
+                            onClick={() => {
+                              selectSource(source.id);
+                              if (isTvMode) {
+                                setFocusedSourceId(source.id);
+                                setTvFocusArea('sources');
+                              }
+                            }}
+                            onMouseEnter={() => {
+                              if (isTvMode && source.enabled) {
+                                setFocusedSourceId(source.id);
+                                setTvFocusArea('sources');
+                              }
+                            }}
+                            onDragOver={(event) => handleDragOver(event, source.id)}
+                            onDrop={() => handleDrop(source.id)}
+                            className={`rounded-lg border p-3 transition ${
+                              isActive ? 'border-cyan-400 bg-zinc-950' : 'border-zinc-800 bg-zinc-950/60'
+                            } ${isDragOver ? 'border-cyan-300 bg-cyan-400/5' : ''} ${isDragging ? 'opacity-60' : ''} ${
+                              isTvMode ? 'p-4' : ''
+                            } ${isTvMode && isFocused ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-950' : ''}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-left">
+                                <p className={`font-medium ${isTvMode ? 'text-base' : 'text-sm'}`}>
+                                  <span className="mr-2 text-zinc-400">{sourceOrder}.</span>
+                                  {source.name}
+                                </p>
+                                <p className="text-xs text-zinc-400">{categoryLabel(source.category)}</p>
+                                {isAdmin && sourceHealthById[source.id] && (
+                                  <p
+                                    className={`text-[11px] ${
+                                      sourceHealthById[source.id].status === 'ok' ? 'text-emerald-300' : 'text-amber-300'
+                                    }`}
+                                    title={sourceHealthById[source.id].detail}
+                                  >
+                                    {sourceHealthById[source.id].status === 'ok' ? 'Saglik: Calisiyor' : 'Saglik: Sorunlu'} -{' '}
+                                    {formatDateTime(new Date(sourceHealthById[source.id].checkedAt).toISOString())}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isAdmin && selectedCategoryFilter === 'all' && (
+                                  <button
+                                    type="button"
+                                    draggable
+                                    onDragStart={(event) => handleDragStart(event, source.id)}
+                                    onDragEnd={handleDragEnd}
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="cursor-grab rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 active:cursor-grabbing"
+                                    title="Siralamak icin surukle"
+                                  >
+                                    Surukle
+                                  </button>
+                                )}
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      startEditing(source);
+                                    }}
+                                    className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:border-cyan-400 hover:text-cyan-300"
+                                  >
+                                    Duzenle
+                                  </button>
+                                )}
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void removeSource(source.id);
+                                    }}
+                                    className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-red-400 hover:text-red-300"
+                                  >
+                                    Sil
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {isAdmin && editingId === source.id && (
+                              <div className="mt-3 space-y-2 border-t border-zinc-800 pt-3" onClick={(event) => event.stopPropagation()}>
+                                <input
+                                  value={editName}
+                                  onChange={(event) => setEditName(event.target.value)}
+                                  placeholder="Kaynak adi"
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400"
+                                />
+                                <input
+                                  value={editUrl}
+                                  onChange={(event) => setEditUrl(event.target.value)}
+                                  placeholder="https://..."
+                                  className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={editCategory}
+                                    onChange={(event) => setEditCategory(event.target.value as SourceCategory)}
+                                    className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                                  >
+                                    <option value="sports">Mac Yayinlari</option>
+                                    <option value="film">Film</option>
+                                    <option value="tv">TV</option>
+                                    <option value="music">Muzik</option>
+                                    <option value="hidden">Gizli (Sadece Admin)</option>
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveSourceChanges(source.id)}
+                                    className="ml-auto rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-cyan-400"
+                                  >
+                                    Kaydet
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={cancelEditing}
+                                    className="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-200 hover:border-zinc-500"
+                                  >
+                                    Iptal
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+
+                    {canViewContent && !isLoadingSources && visibleSources.length === 0 && (
+                      <p className="text-sm text-zinc-400">Bu filtrede kaynak yok.</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
-          )}
-
-          <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-            <button
-              type="button"
-              onClick={() => setShowSourceList((prev) => !prev)}
-              className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-200"
-            >
-              <span>Kaynak Listesi ({accessibleSources.length})</span>
-              <span className="text-xs text-zinc-400">{showSourceList ? 'Kapat' : 'Ac'}</span>
-            </button>
-
-            {showSourceList && (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-zinc-500">
-                    {isAdmin
-                      ? 'Kaynak sayisinda limit yok. Istedigin kadar kaynak ekleyebilir, surukle-birak ile sirayi degistirebilirsin.'
-                      : 'Kategori secip kanali ac. Izleyici modunda sadece izleme kontrolleri gosterilir.'}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsTvMode((prev) => {
-                          const next = !prev;
-                          if (next) {
-                            setShowSourceList(true);
-                            setTvFocusArea('categories');
-                          }
-                          return next;
-                        });
-                      }}
-                      className={`rounded-md border px-2 py-1 text-xs transition ${
-                        isTvMode
-                          ? 'border-emerald-400 text-emerald-300 hover:border-emerald-300'
-                          : 'border-zinc-700 text-zinc-200 hover:border-zinc-500'
-                      }`}
-                    >
-                      TV Modu: {isTvMode ? 'Acik' : 'Kapali'}
-                    </button>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => void applyAlphabeticalSort()}
-                        className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:border-zinc-500"
-                      >
-                        A-Z Sirala (Kalici)
-                      </button>
-                    )}
-                    {isTvMode ? (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
-                        <span>Kategori:</span>
-                        {tvCategoryOptions.map((option, index) => {
-                          const isSelected = selectedCategoryFilter === option.value;
-                          const isTvFocused = tvFocusArea === 'categories' && tvCategoryIndex === index;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCategoryFilter(option.value);
-                                setTvCategoryIndex(index);
-                                setTvFocusArea('categories');
-                              }}
-                              className={`rounded-md border px-2 py-1 text-xs transition ${
-                                isSelected
-                                  ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200'
-                                  : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
-                              } ${isTvFocused ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-900' : ''}`}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-xs text-zinc-300">
-                        <span>Kategori:</span>
-                        <select
-                          value={selectedCategoryFilter}
-                          onChange={(event) => setSelectedCategoryFilter(event.target.value as 'all' | SourceCategory)}
-                          className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs"
-                        >
-                          <option value="all">Tum kategoriler</option>
-                          <option value="sports">Mac Yayinlari</option>
-                          {isAdmin && <option value="film">Film</option>}
-                          <option value="tv">TV</option>
-                          {isAdmin && <option value="music">Muzik</option>}
-                          {isAdmin && <option value="hidden">Gizli</option>}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {isAdmin && (
-                  <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAutoHealthCheckEnabled((prev) => !prev)}
-                        className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:border-zinc-500"
-                      >
-                        Oto Saglik Taramasi: {autoHealthCheckEnabled ? 'Acik' : 'Kapali'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void runSourceHealthScan('manual')}
-                        disabled={isHealthScanRunning}
-                        className="rounded-md border border-cyan-600/60 px-2 py-1 text-xs text-cyan-200 transition hover:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isHealthScanRunning ? 'Taraniyor...' : 'Simdi Tara'}
-                      </button>
-                      <span className="text-xs text-zinc-400">Durum: {healthSummary.ok} calisiyor, {healthSummary.failed} sorunlu</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-zinc-500">
-                      Oto tarama acikken sistem kaynaklari arka planda kontrol eder. Aktif oynatilan kaynak taranmaz.
-                    </p>
-                    {healthScanMessage && <p className="mt-1 text-xs text-emerald-300">{healthScanMessage}</p>}
-                  </div>
-                )}
-                {isTvMode && (
-                  <p className="text-xs text-emerald-300">
-                    TV modu aktif: Sol ile sol panele, Sag ile yayin paneline gec. CH+/CH- (veya PageUp/PageDown)
-                    ile kanal degistir. Yukari/Asagi ile secimi degistir, Enter ile uygula.
-                  </p>
-                )}
-                {isAdmin && selectedCategoryFilter !== 'all' && (
-                  <p className="text-xs text-amber-300">Siralama yapmak icin kategori filtresini "Tum kategoriler" yap.</p>
-                )}
-                {isAdmin && storageMode === 'cloud' && !supportsCloudOrdering && (
-                  <p className="text-xs text-amber-300">
-                    Tum izleyicilerde ayni siralama icin stream_sources tablosuna sort_order kolonu ekleyin.
-                  </p>
-                )}
-
-                <div className="space-y-2 pr-1">
-                  {isLoadingSources && <p className="text-sm text-zinc-400">Kaynaklar yukleniyor...</p>}
-                  {!canViewContent && !isLoadingSources && (
-                    <p className="text-sm text-zinc-400">Kaynaklari listelemek icin once giris yapmalisin.</p>
-                  )}
-
-                  {canViewContent &&
-                    visibleSources.map((source, index) => {
-                const isActive = source.id === activeSourceId;
-                 const isDragging = draggingSourceId === source.id;
-                 const isDragOver = dragOverSourceId === source.id;
-                  const isFocused = focusedSourceId === source.id;
-                  const sourceOrder = index + 1;
-                return (
-                  <article
-                    key={source.id}
-                    ref={(node) => {
-                      sourceItemRefs.current[source.id] = node;
-                    }}
-                     onClick={() => {
-                       selectSource(source.id);
-                       if (isTvMode) {
-                         setFocusedSourceId(source.id);
-                         setTvFocusArea('sources');
-                       }
-                     }}
-                      onMouseEnter={() => {
-                        if (isTvMode && source.enabled) {
-                          setFocusedSourceId(source.id);
-                           setTvFocusArea('sources');
-                        }
-                      }}
-                      onDragOver={(event) => handleDragOver(event, source.id)}
-                      onDrop={() => handleDrop(source.id)}
-                    className={`rounded-lg border p-3 transition ${
-                      isActive ? 'border-cyan-400 bg-zinc-950' : 'border-zinc-800 bg-zinc-950/60'
-                       } ${isDragOver ? 'border-cyan-300 bg-cyan-400/5' : ''} ${isDragging ? 'opacity-60' : ''} ${
-                         isTvMode ? 'p-4' : ''
-                       } ${isTvMode && isFocused ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-950' : ''}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-left">
-                          <p className={`font-medium ${isTvMode ? 'text-base' : 'text-sm'}`}>
-                            <span className="mr-2 text-zinc-400">{sourceOrder}.</span>
-                            {source.name}
-                          </p>
-                        <p className="text-xs text-zinc-400">{categoryLabel(source.category)}</p>
-                        {isAdmin && sourceHealthById[source.id] && (
-                          <p
-                            className={`text-[11px] ${
-                              sourceHealthById[source.id].status === 'ok' ? 'text-emerald-300' : 'text-amber-300'
-                            }`}
-                            title={sourceHealthById[source.id].detail}
-                          >
-                            {sourceHealthById[source.id].status === 'ok' ? 'Saglik: Calisiyor' : 'Saglik: Sorunlu'} -{' '}
-                            {formatDateTime(new Date(sourceHealthById[source.id].checkedAt).toISOString())}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isAdmin && selectedCategoryFilter === 'all' && (
-                          <button
-                            type="button"
-                            draggable
-                            onDragStart={(event) => handleDragStart(event, source.id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={(event) => event.stopPropagation()}
-                            className="cursor-grab rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 active:cursor-grabbing"
-                            title="Siralamak icin surukle"
-                          >
-                            Surukle
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              startEditing(source);
-                            }}
-                            className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:border-cyan-400 hover:text-cyan-300"
-                          >
-                            Duzenle
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void removeSource(source.id);
-                            }}
-                            className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-red-400 hover:text-red-300"
-                          >
-                            Sil
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {isAdmin && editingId === source.id && (
-                      <div className="mt-3 space-y-2 border-t border-zinc-800 pt-3" onClick={(event) => event.stopPropagation()}>
-                        <input
-                          value={editName}
-                          onChange={(event) => setEditName(event.target.value)}
-                          placeholder="Kaynak adi"
-                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400"
-                        />
-                        <input
-                          value={editUrl}
-                          onChange={(event) => setEditUrl(event.target.value)}
-                          placeholder="https://..."
-                          className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none transition focus:border-cyan-400"
-                        />
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={editCategory}
-                            onChange={(event) => setEditCategory(event.target.value as SourceCategory)}
-                            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
-                          >
-                            <option value="sports">Mac Yayinlari</option>
-                            <option value="film">Film</option>
-                            <option value="tv">TV</option>
-                            <option value="music">Muzik</option>
-                            <option value="hidden">Gizli (Sadece Admin)</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => void saveSourceChanges(source.id)}
-                            className="ml-auto rounded-md bg-cyan-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-cyan-400"
-                          >
-                            Kaydet
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEditing}
-                            className="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-200 hover:border-zinc-500"
-                          >
-                            Iptal
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </article>
-                );
-                    })}
-
-                  {canViewContent && !isLoadingSources && visibleSources.length === 0 && (
-                    <p className="text-sm text-zinc-400">Bu filtrede kaynak yok.</p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
           </section>
         </aside>
 
@@ -3567,63 +3567,63 @@ export default function App() {
               </div>
             </div>
 
-             <div
-               ref={playerContainerRef}
-               className={
-                 isMultiView
-                   ? 'w-full bg-black p-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto'
-                   : 'aspect-video w-full bg-black'
-               }
-             >
-               {!canViewContent ? (
-                 <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
-                   Yayinlari gormek icin izinli e-posta ile giris yapmalisin.
-                 </div>
-               ) : isMultiView ? (
-                 <div
-                   className={`grid gap-3 ${
-                     multiViewMode === 'quad'
-                        ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:auto-rows-[minmax(230px,1fr)]'
-                       : 'grid-cols-1 md:grid-cols-2 lg:h-full'
-                   }`}
-                 >
-                   {Array.from({ length: multiViewSlotCount }).map((_, slotIndex) => (
-                     <MultiViewPlayerTile
-                       key={`multi-slot-${slotIndex}`}
-                       slotIndex={slotIndex}
-                       sourceId={multiViewSourceIds[slotIndex] ?? ''}
-                       sources={enabledVisibleSources}
-                       onSourceChange={updateMultiViewSource}
-                       allowAudio={slotIndex === 0}
-                       compact={multiViewMode === 'quad'}
-                     />
-                   ))}
-                 </div>
-               ) : activeSource?.enabled ? (
-                 playbackMode === 'video' ? (
-                   <video
-                     key={`${activeSource.id}-${activeSource.url}`}
-                     ref={videoRef}
-                     className="h-full w-full"
-                     controls
-                     autoPlay
-                     playsInline
-                     onCanPlay={onVideoCanPlay}
-                     onError={onVideoError}
-                   />
-                 ) : (
-                   <iframe
-                     key={iframeKey}
-                      ref={iframeRef}
-                     src={activeSource.url}
-                     title="Canli Yayin"
-                     className="h-full w-full"
-                     allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                     allowFullScreen
-                     onLoad={onIframeLoaded}
-                     onError={onIframeError}
-                   />
-                 )
+            <div
+              ref={playerContainerRef}
+              className={
+                isMultiView
+                  ? 'w-full bg-black p-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto'
+                  : 'aspect-video w-full bg-black'
+              }
+            >
+              {!canViewContent ? (
+                <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
+                  Yayinlari gormek icin izinli e-posta ile giris yapmalisin.
+                </div>
+              ) : isMultiView ? (
+                <div
+                  className={`grid gap-3 ${
+                    multiViewMode === 'quad'
+                      ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:auto-rows-[minmax(230px,1fr)]'
+                      : 'grid-cols-1 md:grid-cols-2 lg:h-full'
+                  }`}
+                >
+                  {Array.from({ length: multiViewSlotCount }).map((_, slotIndex) => (
+                    <MultiViewPlayerTile
+                      key={`multi-slot-${slotIndex}`}
+                      slotIndex={slotIndex}
+                      sourceId={multiViewSourceIds[slotIndex] ?? ''}
+                      sources={enabledVisibleSources}
+                      onSourceChange={updateMultiViewSource}
+                      allowAudio={slotIndex === 0}
+                      compact={multiViewMode === 'quad'}
+                    />
+                  ))}
+                </div>
+              ) : activeSource?.enabled ? (
+                playbackMode === 'video' ? (
+                  <video
+                    key={`${activeSource.id}-${activeSource.url}`}
+                    ref={videoRef}
+                    className="h-full w-full"
+                    controls
+                    autoPlay
+                    playsInline
+                    onCanPlay={onVideoCanPlay}
+                    onError={onVideoError}
+                  />
+                ) : (
+                  <iframe
+                    key={iframeKey}
+                    ref={iframeRef}
+                    src={activeSource.url}
+                    title="Canli Yayin"
+                    className="h-full w-full"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    onLoad={onIframeLoaded}
+                    onError={onIframeError}
+                  />
+                )
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-zinc-500">
                   Aktif kaynak yok. Listeden bir kaynak secin.
@@ -3669,8 +3669,8 @@ export default function App() {
                     playerState === 'failed'
                       ? 'text-red-300'
                       : playerState === 'ready'
-                        ? 'text-emerald-300'
-                        : 'text-zinc-300'
+                      ? 'text-emerald-300'
+                      : 'text-zinc-300'
                   }`}
                 >
                   {playerMessage}
